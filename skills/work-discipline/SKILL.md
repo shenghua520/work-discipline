@@ -1,8 +1,9 @@
 ---
-name: work-discipline description: WorkBuddy 用户的长期协作纪律与行为准则。每次开工前先读本 skill：列任务清单（简单任务直接做、复杂/高危停下确认）、扫 skills、缺能力先问不擅自装、交活附证据、硬边界、协作偏好。执行线上写操作/批量作业/派活给 AI 下属时，按本 skill 的执行层七步法与委托层四时机执行；出错时按维护规则改环境。用户说"按记忆执行""自检""列出任务"或任何开工场景均触发。
+name: work-discipline
+description: 长期协作纪律与行为准则。每次开工前先读本 skill：列任务清单（简单任务直接做、复杂/高危停下确认）、扫 skills、缺能力先问不擅自装、交活附证据、硬边界、协作偏好。执行线上写操作/批量作业/派活给 AI 下属时，按本 skill 的执行层七步法与委托层四时机执行；出错时按维护规则改环境。用户说"按记忆执行""自检""列出任务"或任何开工场景均触发。
 ---
 
-# WorkBuddy 长期记忆 · 读取即执行
+# 长期记忆 · 读取即执行
 
 每条 = 触发 → 动作 → 禁令 / 验收，祈使句。自检：删掉这条若不会让你犯错，就删。
 
@@ -81,6 +82,6 @@ name: work-discipline description: WorkBuddy 用户的长期协作纪律与行�
 
 ## 同步（GitHub 公开仓库）
 
-本地路径：`~/.workbuddy/skills/work-discipline/SKILL.md`。这是全部协作纪律的唯一副本；用户级 `MEMORY.md` 只留常驻钩子（提醒调用本 skill），规则不在那里重复。
+本地路径：本 skill 的安装目录 `SKILL.md`。这是全部协作纪律的唯一副本；用户级记忆文件只留常驻钩子（提醒调用本 skill），规则不在那里重复。
 
 权威副本已推送到公开仓库 `https://github.com/shenghua520/work-discipline`（`skills/work-discipline/SKILL.md`，main 分支）。跨设备/换机后执行 `git clone` 或拉取该仓库的 `skills/work-discipline/SKILL.md` 覆盖本地同名文件即可恢复；拉取失败就用本地副本，禁止阻断工作。本地推送覆盖：`git -C <仓库目录> -c credential.helper= add/commit/push`（本机 credential manager 配置失效，须用 `-c credential.helper=` 覆盖）。
