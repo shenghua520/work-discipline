@@ -42,7 +42,9 @@
 
    ⚠️ **只拷 `SKILL.md` 会坏掉**：主文件里写着「涉及线上写操作、批量作业、派活时必须先读 `references/` 对应文件」，缺了这些文件，执行层与委托层的细则会整体失效，而且**是静默失效**——skill 照样能加载，只是规则被跳过。所以复制时务必带上整个目录。
 
-2. **常驻钩子**：在用户级记忆文件（如 `~/.workbuddy/.../MEMORY.md`）里写一句「每次开工前调用 work-discipline skill」。规则正文不在那里重复，避免同一主题两份表述互相冲突。
+2. **常驻钩子（是触发器，不是规则副本）**：在客户端的常驻指令设置里写一句「每次开工前调用 work-discipline skill；规则一律以该 skill 正文为准」。位置随客户端而异——WorkBuddy 对应设置面板里的「给 WorkBuddy 的指令」（本地落盘为 `~/.workbuddy/app/app-config.json` 的 `personalization.customPrompt`）。
+
+   ⚠️ **不要把规则正文复制进去**。两份规则并存会互相冲突，而冲突的规则会被随机挑一条；更隐蔽的是，常驻指令长得像规则，agent 会以为规则已加载，**反而跳过 skill 调用**——这比没有钩子更糟。
 
 3. **跨设备恢复**：`git clone https://github.com/shenghua520/work-discipline.git`，把 `skills/work-discipline/` 整目录覆盖到本地 skills 目录。拉取失败就用现有本地副本，禁止阻断工作。
 

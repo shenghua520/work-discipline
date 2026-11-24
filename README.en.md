@@ -42,7 +42,9 @@ Chinese and English versions, rule by rule.
 
    ⚠️ **Copying `SKILL.md` alone breaks it**: the main file states that online writes, bulk jobs, and delegation require reading the matching `references/` file first. Without those files the execution-layer and delegation-layer rules fail as a whole — and they fail **silently**, because the skill still loads and the rules are simply skipped. Always bring the whole directory.
 
-2. **Resident hook**: put one line in the user-level memory file (e.g. `~/.workbuddy/.../MEMORY.md`) saying "call the work-discipline skill before every task". The rule body is not repeated there — two statements of the same topic is conflict risk.
+2. **Resident hook (a trigger, not a copy of the rules)**: put one line in the client's resident-instruction setting — "call the work-discipline skill before every task; the rules live in that skill". The location depends on the client — in WorkBuddy it is the "Instructions to WorkBuddy" panel in settings (stored locally as `personalization.customPrompt` in `~/.workbuddy/app/app-config.json`).
+
+   ⚠️ **Never copy the rule body into it**. Two versions of the same rule conflict, and conflicting rules get picked at random; subtler still, a resident instruction that looks like the rules makes the agent assume the rules are already loaded and **skip invoking the skill** — worse than having no hook at all.
 
 3. **Cross-device recovery**: `git clone https://github.com/shenghua520/work-discipline.git`, then overwrite the whole `skills/work-discipline/` directory into the local skills directory. If the pull fails, keep using the existing local copy — never let it block the work.
 

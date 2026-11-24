@@ -23,5 +23,6 @@
 ## Keeping it fresh
 
 - Separate environment facts from rules: **rules** belong in the body (the AI can act on them); **environment state** (one repository's 403, one machine's default config) belongs in the README or notes — an AI reading environment facts has no executable action.
-- The resident hook lives on its own: the user-level memory file keeps only one line ("call this skill before every task"); the rule body does not repeat it — duplication is conflict risk.
+- **The resident instruction is a trigger, not a copy of the rules**: the client's resident instruction (custom instruction / customPrompt) states only *when to invoke which skill* — never copy the rule body into it. Two failures to avoid: ① after the rules change the resident instruction is not updated, leaving two conflicting versions of the same rule — and conflicting rules get picked at random; ② the resident instruction looks like the rules, so the agent assumes the rules are already loaded and skips invoking the skill. Correct shape: one trigger line plus "the rules live in the skill".
+- Keep the resident hook on its own: in the client's resident-instruction setting, keep only one trigger line (e.g. "call the xxx skill before every task"); the rule body is not repeated there — duplication is conflict risk.
 - Read back and verify after every change: the frontmatter's first line and field line breaks, item counts, one-to-one correspondence between Chinese and English items, and matching hashes between remote and local.
