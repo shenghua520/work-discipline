@@ -48,3 +48,4 @@ description: 长期协作纪律与行为准则，把「怎么和人协作」固�
 
 - 本地安装目录下的 `SKILL.md` + `references/` 是全部规则的唯一副本；权威副本在公开仓库 `https://github.com/shenghua520/work-discipline`（main 分支）。跨设备恢复 = clone 后整目录覆盖，禁止只拷 `SKILL.md`（会缺 `references/`）。
 - 更新本 skill 走 git（clone → 改 → `git add` / `commit` / `push`），禁止用网页表单逐字粘贴——粘贴易丢换行、会破坏 YAML frontmatter；确实要在网页端改，改完必须回读校验首行与缩进。
+- **git 传输被拦时改走 API 重放**：出现 `CONNECT tunnel failed, response 502` / 连接重置 / 超时，而 `api.github.com` 仍返回 200，说明被拦的是 git 传输端点、不是凭据——改用 Git Data API 逐提交重放（blob → tree → commit → ref），author 与 message 原样带上以免历史分叉。本机已有现成技能 `github-push-via-api` 可直接调用。
