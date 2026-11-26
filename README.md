@@ -200,6 +200,7 @@ python scripts/build_dist.py --check        # 扁平版与 manifest 是否与源
 
 ## 变更记录
 
+- **v10 自愈带删除语义**：修 v9 自愈的静默失败——只删一半标记（BEGIN/END 孤儿）时，旧逻辑追加新块、把残骸留原地，`--check` 重算 manifest 后反而给坏状态盖合法章。现在：① 每个 key 强制 `BEGIN 数 == END 数 == 1`，孤儿/重复直接 DIFF；② 修块改为「清场 → 原位置重建」——先删该 key 的所有标记与所有内容副本，不再 append 到文件末尾（落点从距安装章节 9789 字符回到节内）；③ 生成结束加幂等断言（渲染内容全篇只出现一次）；④ 报告改为按文件的清场重建列表，去掉恒空的 `[]`；⑤ VERSION 与 CHANGELOG 首条 vN 联动校验（v10 ↔ 10.0.0），常量只被自己校验的装饰问题再次收敛。CI 反向 job 补四类半标记自愈 + 落点断言。
 - **v9 生成闭环**：修三条 v8 残留——① `generate` 缺块时曾打印「回填 4 个」实际只 3 个还报 PASS（写路径伪绿）；现在缺块按标记自动补插、如实报告，回填后再调一次块复检，仍有缺失则 exit 1。② `manifest.version` 收敛为 `build_dist.py` 的 `VERSION` 常量单一来源，`--check` 比对值（之前只查字段存在，篡改 9.9.9 仍 PASS）。③ 安装树与仓库结构树从分语言的 4 个 refs 改为列全 8 个（树描述目录，不是语言视图）——v7 修过、v8 生成时又退回半份的问题。CI 反向 job 补 version 篡改与 generate 自愈两组断言。
 - **v8 文档 SSOT 生成**：把「分发文件清单」（10 个规则文件）收敛为 `build_dist.py` 里的 `RULE_FILES` 常量；README 的安装树、bash / PS 下载循环、仓库结构树全部改为脚本生成，用 `<!-- BEGIN/END GENERATED:x -->` 标记包裹，`--check` 只验生成块逐字同步——覆盖面从「猜哪些事实要验」变成「全部生成块」，v7 那三处盲区（manifest 行、脚本行、第二棵树）一起消失。CI 的 `verify-negative-docs` 改为对四个生成块 × 中英逐块注入垃圾，断言都能被抓到。`docs/clients.md` 的 token 估算标注为估算值、规则文件数标注由脚本核对。
 - **v7 说明书一致性**：品牌检查去掉「目录名以 work-discipline 结尾」的过滤（安装目录一改名被检集合变空集、检查恒过——静默失效），改为以传入目录为根收集 md；README 安装树缩进修复（4 个文件曾掉回根层，照图拷会装错目录）；下载循环补拉 `scripts/verify_skill.py` 与 `manifest.json`，并把「自检命令」明确分成两条路（有 Python + 脚本跑语义自检；否则只做哈希自证）；`build_dist.py --check` 增加文档静态门禁——校验 README 安装树与实际 references 一致、下载循环覆盖全部规则文件（不联网、不执行 README 命令，避免 CI 依赖外部网络）；CI 加 `verify-negative-docs` job 覆盖树缩进错、下载清单漏、改名后品牌检查空转三类反向测试。

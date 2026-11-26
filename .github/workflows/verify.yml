@@ -160,21 +160,56 @@ jobs:
           grep -q "版本不符" /tmp/neg-ver.txt || { echo "FAIL: version error not attributed"; exit 1; }
           cp /tmp/good-manifest.json manifest.json
           echo "  caught tampered manifest.version"
-          # 5) generate 缺块不得伪绿：删整块后生成，必须补插恢复且回报补插
-          cp /tmp/good-cn.md README.md
-          python - <<'PY'
-          import io
+          # 5) 自愈对决四类破坏：删整块 / 只删 BEGIN / 只删 END / 插孤立 END。
+          #    每类都必须恢复成 BEGIN=1 END=1 且随后 --check 通过；半标记不能再留孤儿。
+          for case in whole no_begin no_end orphan_end; do
+            cp /tmp/good-cn.md README.md
+            python - "$case" <<'PY'
+          import io, re, sys
+          case = sys.argv[1]
           p = "README.md"
           t = io.open(p, encoding="utf-8").read()
-          i = t.find("   <!-- BEGIN GENERATED:install-tree -->")
-          j = t.find("   <!-- END GENERATED:install-tree -->")
-          assert i > 0 and j > i
-          io.open(p, "w", encoding="utf-8").write(t[:i] + t[j + len("   <!-- END GENERATED:install-tree -->"):])
+          key = "repo-tree" if case == "orphan_end" else "install-tree"
+          mb = re.search(r"^[ \t]*<!-- BEGIN GENERATED:" + key + r" -->[ \t]*$", t, re.M)
+          me = re.search(r"^[ \t]*<!-- END GENERATED:" + key + r" -->[ \t]*$", t, re.M)
+          assert mb and me, f"missing marker {key}"
+          if case == "whole":
+              t = t[:mb.start()] + t[me.end():]
+          elif case == "no_begin":
+              t = t[:mb.start()] + t[mb.end():].lstrip("\n")
+          elif case == "no_end":
+              t = t[:me.start()] + t[me.end():]
+          else:  # orphan_end
+              t = t[:mb.start()] + "<!-- END GENERATED:" + key + " -->\n" + t[mb.start():]
+          io.open(p, "w", encoding="utf-8").write(t)
           PY
-          python scripts/build_dist.py > /tmp/regen.txt 2>&1
-          blocks=$(grep -c "BEGIN GENERATED" README.md)
-          [ "$blocks" -eq 4 ] || { echo "FAIL: generate did not restore missing block ($blocks/4)"; exit 1; }
-          grep -q "补插" /tmp/regen.txt || { echo "FAIL: generate did not report insertion"; exit 1; }
+            python scripts/build_dist.py > /tmp/regen-$case.txt 2>&1
+            python scripts/build_dist.py --check > /tmp/check-$case.txt 2>&1
+            code=$?
+            [ "$code" -eq 0 ] || { echo "FAIL: $case self-heal did not converge"; cat /tmp/check-$case.txt; exit 1; }
+            grep -q "清场重建" /tmp/regen-$case.txt || { echo "FAIL: $case not reported as rebuilt"; exit 1; }
+            echo "  caught $case (self-healed, clean on re-check)"
+          done
           cp /tmp/good-cn.md README.md
-          echo "  caught missing-block generate would-be false green (self-healed + reported)"
-          echo "PASS: generated blocks × CN/EN, brand, version, generate self-heal all verified"
+          # 6) 落点断言：整块缺失自愈后，install-tree 必须仍在"安装与恢复"节内（不许贴到文件末尾）
+          python - <<'PY'
+          import io, re
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          mb = re.search(r"^[ \t]*<!-- BEGIN GENERATED:install-tree -->[ \t]*$", t, re.M)
+          me = re.search(r"^[ \t]*<!-- END GENERATED:install-tree -->[ \t]*$", t, re.M)
+          assert mb and me
+          t = t[:mb.start()] + t[me.end():]
+          io.open(p, "w", encoding="utf-8").write(t)
+          PY
+          python scripts/build_dist.py > /dev/null 2>&1
+          python - <<'PY'
+          import io, re, sys
+          t = io.open("README.md", encoding="utf-8").read()
+          pos = t.find("<!-- BEGIN GENERATED:install-tree -->")
+          sec = t.rfind("## 安装与恢复", 0, pos)
+          assert sec >= 0 and pos - sec < 6000, f"install-tree landed outside install section (dist={pos-sec})"
+          print("  install-tree restored in place")
+          PY
+          cp /tmp/good-cn.md README.md
+          echo "PASS: blocks × CN/EN, brand, version, 4-way self-heal, in-place landing all verified"

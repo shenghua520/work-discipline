@@ -35,7 +35,7 @@ EXTRA_FILES = ["manifest.json", "scripts/verify_skill.py"]
 REFS_CN = ["execution-layer.md", "delegation-layer.md", "memory-maintenance.md", "project-notes.md"]
 REFS_EN = [f.replace(".md", ".en.md") for f in REFS_CN]
 # 版本单一来源：manifest.version 由此写入；--check 比对它，不靠人工记。
-VERSION = "9.0.0"
+VERSION = "10.0.0"
 
 HEADER_CN = """# work-discipline · 扁平版（分发用）
 
@@ -258,8 +258,19 @@ def render_blocks(lang):
     return {key: fn(lang) for key, fn in GENERATORS.items()}
 
 
+def markers_of(text, key):
+    """某 key 的 BEGIN/END 标记出现次数（不看配对——孤儿标记也要抓）。"""
+    return (len(re.findall(r"BEGIN GENERATED:" + re.escape(key), text)),
+            len(re.findall(r"END GENERATED:" + re.escape(key), text)))
+
+
+BLOCK_RE = lambda key: re.compile(
+    r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
+    re.S | re.M)
+
+
 def doc_blocks_status():
-    """校验 README 里每个 GENERATED 块是否与源派生内容逐字一致。"""
+    """校验 README 生成块：标记计数恰好 1/1、内容逐字一致、渲染内容只出现一次。"""
     problems = []
     for filename, lang in README_FILES:
         path = os.path.join(ROOT, filename)
@@ -269,43 +280,96 @@ def doc_blocks_status():
         text = read(path)
         expected = render_blocks(lang)
         for key, want in expected.items():
-            pattern = re.compile(
-                r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
-                re.S | re.M)
-            m = pattern.search(text)
+            nb, ne = markers_of(text, key)
+            if nb != 1 or ne != 1:
+                problems.append(f"{filename} 标记计数异常 {key}: BEGIN={nb} END={ne}（各须为 1）")
+                continue
+            m = BLOCK_RE(key).search(text)
             if not m:
                 problems.append(f"{filename} 缺生成标记 {key}")
             elif m.group(2) != want:
                 problems.append(f"{filename} 生成块 {key} 不同步")
+            # 幂等/唯一性：同一 key 的渲染内容全篇只允许出现一次
+            if text.count(want) != 1:
+                problems.append(f"{filename} 生成块 {key} 内容出现 {text.count(want)} 次（应为 1）")
+        # VERSION 联动：变更记录首条 vN 必须等于 VERSION 的主版本
+        title = "## 变更记录" if lang == "cn" else "## Changelog"
+        changelog = text.split(title, 1)
+        if len(changelog) > 1:
+            first = next((l for l in changelog[1].split("\n") if l.startswith("- **v")), "")
+            vm = re.match(r"- \*\*v(\d+)\b", first)
+            want_v = "v" + VERSION.split(".")[0]
+            if vm and vm.group(1) != want_v[1:]:
+                problems.append(f"{filename} 变更记录首条 v{vm.group(1)} 与 VERSION {VERSION} 不一致（应 {want_v}）")
     return problems
 
 
 def regenerate_readme_blocks():
-    """回填生成块；缺失的块按标记自动补插（在仓库结构节之后），绝不静默跳过。"""
-    inserted = []
+    """回填生成块。修复带删除语义：任何异常状态先清场，再在原位置重建一个新块。
+
+    绝不在文件末尾追加孤儿——那会把坏状态写成合法基准。
+    """
     for filename, lang in README_FILES:
         path = os.path.join(ROOT, filename)
         if not os.path.exists(path):
             continue
         text = read(path)
-        blocks = render_blocks(lang)
-        for key, want in blocks.items():
-            pattern = re.compile(
-                r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
-                re.S | re.M)
-            new_text, n = pattern.subn(lambda m: m.group(1) + want + m.group(3), text)
-            if n:
-                text = new_text
+        local_inserted = []
+        for key, want in render_blocks(lang).items():
+            pattern = BLOCK_RE(key)
+            m = pattern.search(text)
+            nb, ne = markers_of(text, key)
+            # 健康块：直接回填内容
+            if nb == 1 and ne == 1 and m:
+                text = pattern.sub(lambda x: x.group(1) + want + x.group(3), text, count=1)
                 continue
-            # 缺块：自动补插到 README 末尾（带空行），并记录下来如实报告
-            block = (f"<!-- BEGIN GENERATED:{key} -->\n{want}\n"
+            # 异常：清场——删除该 key 的一切残骸（所有标记 + 所有渲染内容副本），
+            # 在最早出现处重建一个规范块。删完必须"内容出现 0 次"，否则幂等断言会失败。
+            positions = [x.start() for x in re.finditer(
+                r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text)]
+            # 落点优先用块自己的最早标记位置；整块缺失时退回"该 key 的归属章节"末尾，
+            # 绝不 append 到文件末尾（v9 那个 bug：安装树被贴到变更记录之后）。
+            if positions:
+                anchor = min(positions)
+            else:
+                section = ("## 安装与恢复" if lang == "cn" else "## Installation and recovery") \
+                    if key in ("install-tree", "bash-download", "ps-download") else \
+                          ("## 仓库结构" if lang == "cn" else "## Repository layout")
+                si = text.find(section)
+                if si < 0:
+                    raise SystemExit(f"找不到落点章节 {section}（{filename}/{key}）")
+                nxt = text.find("\n## ", si + len(section))
+                anchor = nxt + 1 if nxt >= 0 else len(text)
+                # 锚点落在下一个章节标题之前，若该处是空行则往前收到非空内容后
+                while anchor > si and text[anchor - 1] in "\n\r":
+                    anchor -= 1
+            spans = [(x.start(), x.end()) for x in re.finditer(
+                r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text)]
+            # 渲染内容本身的所有出现（孤儿正文就是没有标记包裹的那份）——一起清掉
+            starts = []
+            pos = 0
+            while True:
+                k = text.find(want, pos)
+                if k < 0:
+                    break
+                starts.append((k, k + len(want)))
+                pos = k + 1
+            spans.extend(starts)
+            for s, e in sorted(set(spans), reverse=True):
+                text = text[:s] + text[e:]
+            block = (f"\n<!-- BEGIN GENERATED:{key} -->\n{want}\n"
                      f"<!-- END GENERATED:{key} -->\n")
-            text = text.rstrip("\n") + "\n\n" + block
-            inserted.append(f"{filename}:{key}")
+            anchor = min(anchor, len(text))
+            # 保证标记独占一行：锚点前若非行首则补换行，锚点后若是正文则也补换行
+            left = text[:anchor]
+            if left and not left.endswith("\n"):
+                left += "\n"
+            text = left + block + text[anchor:]
+            local_inserted.append(key)
         write(path, text)
         print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块"
-              + (f"（补插 {[x for x in inserted if x.startswith(filename)]}）" if inserted else ""))
-    return inserted
+              + (f"（清场重建 {local_inserted}）" if local_inserted else ""))
+    return True
 
 
 def tracked_files():
