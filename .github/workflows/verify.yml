@@ -7,18 +7,45 @@ on:
     branches: [main]
 
 jobs:
-  verify:
+  # 有依赖路径：必须 fully verified（exit 0），两个平台都跑，顺手验掉路径分隔符
+  verify-full:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+      - name: Self-check (full)
+        run: python scripts/verify_skill.py skills/work-discipline
+      - name: Dist artifacts in sync
+        run: python scripts/build_dist.py --check
+
+  # 无依赖路径：必须 PARTIAL 且 exit 2，专门覆盖上一条 job 测不到的分支
+  verify-no-deps:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install PyYAML
-        run: python -m pip install --quiet pyyaml
-
-      - name: Run self-check
-        run: python scripts/verify_skill.py skills/work-discipline
+      - name: Self-check must report PARTIAL, never a false green
+        shell: bash
+        run: |
+          set +e
+          python -S scripts/verify_skill.py skills/work-discipline > partial-out.txt 2>&1
+          code=$?
+          set -e
+          cat partial-out.txt
+          if [ "$code" -ne 2 ]; then
+            echo "FAIL: expected exit 2 (PARTIAL), got $code"
+            exit 1
+          fi
+          grep -q "PARTIAL" partial-out.txt || { echo "FAIL: no PARTIAL marker"; exit 1; }
+          grep -q "未 Fully 验证" partial-out.txt || { echo "FAIL: false-green wording"; exit 1; }
+          echo "PASS: no-dependency branch exits 2 and refuses to claim full verification"

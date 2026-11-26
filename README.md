@@ -46,18 +46,64 @@
 
    ⚠️ **不要把规则正文复制进去**。两份规则并存会互相冲突，而冲突的规则会被随机挑一条；更隐蔽的是，常驻指令长得像规则，agent 会以为规则已加载，**反而跳过 skill 调用**——这比没有钩子更糟。
 
-3. **跨设备恢复**：`git clone https://github.com/shenghua520/work-discipline.git`，把 `skills/work-discipline/` 整目录覆盖到本地 skills 目录。拉取失败就用现有本地副本，禁止阻断工作。
+3. **跨设备恢复（git 优先）**：`git clone https://github.com/shenghua520/work-discipline.git`，把 `skills/work-discipline/` 整目录覆盖到本地 skills 目录。拉取失败就用现有本地副本，禁止阻断工作。
+4. **无 git 时的恢复路**（本机 git 不在 PATH 时实测可用，按可行性排序）：
+
+   - **zip / tarball**：仓库首页 `Code` → `Download ZIP`，解压后把 `skills/work-discipline/` 整目录拷到用户级 skills 目录。
+   - **逐文件 raw 下载（bash）**：
+
+     ```bash
+     BASE="https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
+     DEST="$HOME/.workbuddy/skills/work-discipline"   # 按客户端调整
+     for f in SKILL.md SKILL.en.md \
+       references/execution-layer.md references/execution-layer.en.md \
+       references/delegation-layer.md references/delegation-layer.en.md \
+       references/memory-maintenance.md references/memory-maintenance.en.md \
+       references/project-notes.md references/project-notes.en.md; do
+       mkdir -p "$DEST/$(dirname "$f")"
+       curl -fsSL "$BASE/$f" -o "$DEST/$f" || echo "FAILED: $f"
+     done
+     ```
+
+   - **逐文件 raw 下载（PowerShell）**：
+
+     ```powershell
+     $base = "https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
+     $dest = "$env:USERPROFILE\.workbuddy\skills\work-discipline"  # 按客户端调整
+     $files = @("SKILL.md","SKILL.en.md",
+       "references/execution-layer.md","references/execution-layer.en.md",
+       "references/delegation-layer.md","references/delegation-layer.en.md",
+       "references/memory-maintenance.md","references/memory-maintenance.en.md",
+       "references/project-notes.md","references/project-notes.en.md")
+     foreach ($f in $files) {
+       $out = Join-Path $dest ($f -replace '/', '\')
+       New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
+       Invoke-WebRequest -Uri "$base/$f" -OutFile $out
+     }
+     ```
+
+   拉完用 `manifest.json` 核对 SHA256（见下），别只看文件在不在。
+
+5. **换客户端**：不同软件的 skill 目录、常驻指令落点、按需读能力都不一样。装之前先看 `docs/clients.md`（中）/ `docs/clients.en.md`（英）的映射表——表里每条都标了证据等级（本机实测 / 外部实测 / 未实测）。**只能读单文件的客户端请改用 `dist/` 扁平版，不要装目录版。**
 
 ## 仓库结构
 
 ```text
 .
-├── .github/workflows/verify.yml     # CI：push / PR 自动跑自检
+├── .github/workflows/verify.yml     # CI：双 job（有/无 PyYAML）× 双平台
 ├── LICENSE                          # MIT
 ├── README.md                        # 本说明（中文）
 ├── README.en.md                     # 本说明（英文）
+├── docs/
+│   ├── clients.md                   # 客户端适配表（中文，标证据等级）
+│   └── clients.en.md                # 客户端适配表（英文）
+├── dist/
+│   ├── work-discipline.flat.md      # 扁平版（无 references，给单文件客户端）
+│   └── work-discipline.flat.en.md
+├── manifest.json                    # 全文件 SHA256 + 字节数（无 Python 也能验）
 ├── scripts/
-│   └── verify_skill.py              # 自检：frontmatter + 中英对齐 + 路由
+│   ├── verify_skill.py              # 语义自检：frontmatter + 中英对齐 + 路由
+│   └── build_dist.py                # 生成/校验扁平版与 manifest
 └── skills/
     └── work-discipline/
         ├── SKILL.md                 # 规则主文件 · 中文 · 唯一入口
@@ -76,12 +122,17 @@
 ## 自检
 
 ```bash
-python scripts/verify_skill.py
+python scripts/verify_skill.py              # 语义自检
+python scripts/build_dist.py --check        # 扁平版与 manifest 是否与源同步
 ```
 
-检查 frontmatter 严格 YAML 解析、description 长度、中英结构指纹对齐（条目 / 标题 / 粗体 / 表格行 / 代码围栏 / 反引号）、路由双向闭合（既查指向的文件存在，也查本地文件都被索引）、无品牌字样、掩码规则未暴露前 4 位，并打印全部文件的 md5 供远端比对。不联网、不写文件。
+`verify_skill.py` 检查 frontmatter 严格 YAML 解析、description 长度、中英结构指纹对齐（条目 / 标题 / 粗体 / 表格行 / 代码围栏 / 反引号）、路由双向闭合（既查指向的文件存在，也查本地文件都被索引）、无品牌字样、掩码规则未暴露前 4 位，并打印全部文件的 md5。`build_dist.py --check` 检查 `dist/` 扁平版和 `manifest.json` 是否与源文件一致——防止改了规则忘记重新生成分发产物。两者都不联网、不写文件。
 
-**退出码语义**：`0` = 全部通过（fully verified）；`1` = 有 FAIL；`2` = 有 PARTIAL（如缺 PyYAML，语法未被验证）——**PARTIAL 不再伪报「全部通过」**。CI 在 push / PR 时自动跑并预装 PyYAML，所以仓库侧永远是 `0` 才算绿。
+**退出码语义**：`0` = 全部通过（fully verified）；`1` = 有 FAIL；`2` = 有 PARTIAL（如缺 PyYAML，语法未被验证）——**PARTIAL 不再伪报「全部通过」**。
+
+**CI 覆盖两条分支**：`verify-full`（ubuntu + windows，装 PyYAML，断言 `exit=0`）+ `verify-no-deps`（`python -S` 无依赖，断言 `exit=2` 且输出含 `PARTIAL`）。之前 CI 只装了 PyYAML，导致 PARTIAL 这条分支永远测不到——现在它被单独断言。
+
+**没有 Python 时的自证**：`manifest.json` 列了每个文件的 SHA256 与字节数，任何语言都能核对（`sha256sum` / PowerShell `Get-FileHash`）。Python 从「必需」降为「可选增强」。
 
 ## 设计取舍：为什么拆成 references
 
@@ -117,6 +168,7 @@ python scripts/verify_skill.py
 
 ## 变更记录
 
+- **v5 发行层改造**：加 `docs/clients.md` 客户端适配表（每条标本机实测 / 外部实测 / 未实测）；加 `dist/` 扁平版 + `manifest.json`（SHA256 无 Python 也能验），配 `scripts/build_dist.py` 生成与 `--check` 同步校验；CI 拆双 job（有/无 PyYAML）× 双平台，专门覆盖之前测不到的 PARTIAL 分支；安装说明补 zip 与逐文件 raw（bash + PowerShell）两条非 git 恢复路；「常驻钩子文件」硬引用改成「客户端常驻指令（落成独立文件时一并重读）」，扁平版文件头声明覆盖目录版专属条款，避免单文件客户端误触发「读不到 references 就报错」。
 - **v4 复评修订**：主文件路由表补 `project-notes`（索引闭合）；自检脚本升级——缺 PyYAML 从 SKIP 改 PARTIAL 且退出码区分 `0/1/2`，中英对齐从"只比条目数"升级为结构指纹（当场抓出 project-notes 反引号 6 vs 8 的漂移），路由增加反向覆盖检查；加 `.github/workflows/verify.yml` CI 门禁；委托层注明单人单 agent 场景的适用边界，记忆维护注明与客户端偏好 / 记忆工具的双源边界。
 - **v3 外部评审修订**：中英 description 改 `>-` 块标量（修复英文版严格 YAML 解析失败）；掩码从「前4+后4」收紧为仅后 4 位；API 重放条款加三条限定并禁止绕过受管网络策略；执行层的特定后端细节（`空 body POST` / `STATIC·VOLATILE` / `result:true+taskId`）移入 `references/project-notes.md`，规则层只留可迁移骨架；补 MIT LICENSE 与 `scripts/verify_skill.py` 自检脚本。
 - **v2 结构重构**：主文件只留高频硬规则（≈55 行），执行层 / 委托层 / 记忆维护三章拆入 `references/`，路由索引改为真索引；新增「凭据不回显」「压缩或换实例后重读」两条规则；合并重复条目（任务清单与工作条目、扫技能与缺能力先问），消除自相矛盾；环境事实从规则正文移入本文件。

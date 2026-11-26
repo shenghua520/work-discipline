@@ -1,0 +1,87 @@
+{
+  "files": {
+    ".github/workflows/verify.yml": {
+      "sha256": "a225ab6cc59e7e0baaea0b994047433ebb0cc493b7fe9d65e1e2069878f8d414",
+      "size": 1698
+    },
+    "LICENSE": {
+      "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
+      "size": 1068
+    },
+    "README.en.md": {
+      "sha256": "7b9de2e533e6676fcc0de6f11a39d975c7178ccc18c7281f417d91d5acd0b465",
+      "size": 15632
+    },
+    "README.md": {
+      "sha256": "24602de44d2e6c35862c765b1fcabe2f59a7f573ff41ebaf0e0db37bee9fe72f",
+      "size": 13989
+    },
+    "dist/work-discipline.flat.en.md": {
+      "sha256": "ac402034e839f62d748720a83dd29ad087e24fd730de1c6ec323055291027a05",
+      "size": 20657
+    },
+    "dist/work-discipline.flat.md": {
+      "sha256": "9cce4b25b329fdb4e7063f54c802d5c40f3c7f8d2b0100b067c84cd268034651",
+      "size": 16607
+    },
+    "docs/clients.en.md": {
+      "sha256": "3e3e1468922cb898d8fef11b8af576eee8351cdecd14bc3194c69d36d13e30e8",
+      "size": 4981
+    },
+    "docs/clients.md": {
+      "sha256": "ac59e37c1e395b44dd00a2461090c0954009d4f052d5ec3402171d89f0c86a2f",
+      "size": 4670
+    },
+    "scripts/build_dist.py": {
+      "sha256": "ca587e683a5d91d1a53948f45de7be38807b02b0d944c68d6f38cbe69f0f43f2",
+      "size": 8521
+    },
+    "scripts/verify_skill.py": {
+      "sha256": "2de7e01e642ca6540a91f37975444e8d96f7178884d8591bbe0f5376b818fa63",
+      "size": 10138
+    },
+    "skills/work-discipline/SKILL.en.md": {
+      "sha256": "69b9970c306b8e1d03d3c2297be6f838d8e0f35e005922a2f2b0b084473c387d",
+      "size": 7928
+    },
+    "skills/work-discipline/SKILL.md": {
+      "sha256": "f46c31d25dbd371219021a2e820d9d5791e99bfe978ac0c98173003d7cf63dc8",
+      "size": 6505
+    },
+    "skills/work-discipline/references/delegation-layer.en.md": {
+      "sha256": "dd90f64a72f397f448f618f1da0ced67b09c096bf8b17073b1cfbc7f5ede6591",
+      "size": 3417
+    },
+    "skills/work-discipline/references/delegation-layer.md": {
+      "sha256": "5fbc126fa0b9f96ab8a20f3124cf3442c0fa7a695ce647ab213b7e09cc93951b",
+      "size": 2544
+    },
+    "skills/work-discipline/references/execution-layer.en.md": {
+      "sha256": "6958ce366e9e7f18e40d730e2036f468b55b0a1c26c5f9de41e832d1bf6ee434",
+      "size": 4113
+    },
+    "skills/work-discipline/references/execution-layer.md": {
+      "sha256": "488b604db3205a7af3b384c6675da2f49ee0d1cddd88de055a1376075923921b",
+      "size": 3342
+    },
+    "skills/work-discipline/references/memory-maintenance.en.md": {
+      "sha256": "7519276d880b9a50e57a7dc6968697ce10ffd829711340ac9da78f28bc1d364f",
+      "size": 4061
+    },
+    "skills/work-discipline/references/memory-maintenance.md": {
+      "sha256": "5b90fb181fd9f363fc3130df3b88d6b895a838604da0baae3ef154c662bcb5fc",
+      "size": 3225
+    },
+    "skills/work-discipline/references/project-notes.en.md": {
+      "sha256": "720803b166b610bd6a7c2ebf6de52acd7eaa710388788916cd11ee0020ee1205",
+      "size": 1141
+    },
+    "skills/work-discipline/references/project-notes.md": {
+      "sha256": "31cfbcb4e32b32f0f0869f9a2db704424da9f6c1bb9adfd5d09c80f105c14eb5",
+      "size": 953
+    }
+  },
+  "note": "manifest.json itself is intentionally excluded to avoid a self-reference cycle.",
+  "schema": "sha256+size; verify with sha256sum / certutil / Get-FileHash, no Python needed",
+  "version": "5.0.0"
+}

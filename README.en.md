@@ -46,18 +46,64 @@ Chinese and English versions, rule by rule.
 
    ⚠️ **Never copy the rule body into it**. Two versions of the same rule conflict, and conflicting rules get picked at random; subtler still, a resident instruction that looks like the rules makes the agent assume the rules are already loaded and **skip invoking the skill** — worse than having no hook at all.
 
-3. **Cross-device recovery**: `git clone https://github.com/shenghua520/work-discipline.git`, then overwrite the whole `skills/work-discipline/` directory into the local skills directory. If the pull fails, keep using the existing local copy — never let it block the work.
+3. **Cross-device recovery (git first)**: `git clone https://github.com/shenghua520/work-discipline.git`, then overwrite the whole `skills/work-discipline/` directory into the local skills directory. If the pull fails, keep using the existing local copy — never let it block the work.
+4. **Recovery without git** (verified usable when git is not on PATH, ordered by feasibility):
+
+   - **zip / tarball**: repo home → `Code` → `Download ZIP`; extract and copy the whole `skills/work-discipline/` dir into the user-level skills directory.
+   - **Per-file raw download (bash)**:
+
+     ```bash
+     BASE="https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
+     DEST="$HOME/.claude/skills/work-discipline"   # adjust for your client
+     for f in SKILL.md SKILL.en.md \
+       references/execution-layer.md references/execution-layer.en.md \
+       references/delegation-layer.md references/delegation-layer.en.md \
+       references/memory-maintenance.md references/memory-maintenance.en.md \
+       references/project-notes.md references/project-notes.en.md; do
+       mkdir -p "$DEST/$(dirname "$f")"
+       curl -fsSL "$BASE/$f" -o "$DEST/$f" || echo "FAILED: $f"
+     done
+     ```
+
+   - **Per-file raw download (PowerShell)**:
+
+     ```powershell
+     $base = "https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
+     $dest = "$env:USERPROFILE\.workbuddy\skills\work-discipline"  # adjust for your client
+     $files = @("SKILL.md","SKILL.en.md",
+       "references/execution-layer.md","references/execution-layer.en.md",
+       "references/delegation-layer.md","references/delegation-layer.en.md",
+       "references/memory-maintenance.md","references/memory-maintenance.en.md",
+       "references/project-notes.md","references/project-notes.en.md")
+     foreach ($f in $files) {
+       $out = Join-Path $dest ($f -replace '/', '\')
+       New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
+       Invoke-WebRequest -Uri "$base/$f" -OutFile $out
+     }
+     ```
+
+   Verify with `manifest.json` SHA256 sums (below) — do not just check that files exist.
+
+5. **Switching clients**: skill dirs, resident-instruction locations, and on-demand read support differ per client. Before installing, see the matrix in `docs/clients.md` (Chinese) / `docs/clients.en.md` (English) — every row carries an evidence level (verified locally / verified externally / not verified). **Clients that can only read a single file must use the `dist/` flat build, not the directory build.**
 
 ## Repository layout
 
 ```text
 .
-├── .github/workflows/verify.yml     # CI: self-check on push / PR
+├── .github/workflows/verify.yml     # CI: dual job (with/without PyYAML) × dual OS
 ├── LICENSE                          # MIT
 ├── README.md                        # this document (Chinese)
 ├── README.en.md                     # this document (English)
+├── docs/
+│   ├── clients.md                   # client compatibility matrix (Chinese, evidence levels)
+│   └── clients.en.md                # client compatibility matrix (English)
+├── dist/
+│   ├── work-discipline.flat.md      # flat build (no references; for single-file clients)
+│   └── work-discipline.flat.en.md
+├── manifest.json                    # SHA256 + byte count for every file (no Python needed)
 ├── scripts/
-│   └── verify_skill.py              # self-check: frontmatter + CN/EN alignment + routes
+│   ├── verify_skill.py              # semantic self-check: frontmatter + alignment + routes
+│   └── build_dist.py                # build / verify flat builds and manifest
 └── skills/
     └── work-discipline/
         ├── SKILL.md                 # main rule file · Chinese · sole entry point
@@ -76,12 +122,17 @@ Chinese and English versions, rule by rule.
 ## Self-check
 
 ```bash
-python scripts/verify_skill.py
+python scripts/verify_skill.py              # semantic self-check
+python scripts/build_dist.py --check        # are flat builds and manifest in sync with sources?
 ```
 
-Checks strict YAML parsing of frontmatter, description length, CN/EN structural fingerprints (items / headings / bold pairs / table rows / code fences / backticks), bidirectional route closure (both "referenced files exist" and "all local files are indexed"), absence of brand names, and that the masking rule no longer exposes the first 4 characters. Prints md5 of every file for remote comparison. No network, no writes.
+`verify_skill.py` checks strict YAML parsing of frontmatter, description length, CN/EN structural fingerprints (items / headings / bold pairs / table rows / code fences / backticks), bidirectional route closure, absence of brand names, and that the masking rule no longer exposes the first 4 characters. `build_dist.py --check` verifies that the `dist/` flat builds and `manifest.json` match the sources — so editing a rule without regenerating the distribution is caught. Neither script uses the network or writes files.
 
-**Exit codes**: `0` = fully verified; `1` = a FAIL; `2` = a PARTIAL (e.g. PyYAML missing, syntax not verified) — PARTIAL no longer masquerades as "all passed". CI runs on push / PR with PyYAML preinstalled, so only `0` is green on the repository side.
+**Exit codes**: `0` = fully verified; `1` = a FAIL; `2` = a PARTIAL (e.g. PyYAML missing, syntax not verified) — PARTIAL no longer masquerades as "all passed".
+
+**CI covers both branches**: `verify-full` (ubuntu + windows, PyYAML installed, asserts `exit=0`) + `verify-no-deps` (`python -S`, asserts `exit=2` and a `PARTIAL` marker). Previously CI only installed PyYAML, so the PARTIAL branch was never exercised — now it is asserted directly.
+
+**Self-verification without Python**: `manifest.json` lists SHA256 and byte count for every file, checkable in any language (`sha256sum` / PowerShell `Get-FileHash`). Python drops from "required" to "optional enhancement".
 
 ## Design trade-off: why references
 
@@ -117,6 +168,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v5 distribution-layer rework**: added `docs/clients.md` compatibility matrix (every row tagged verified-locally / verified-externally / not-verified); added `dist/` flat builds + `manifest.json` (SHA256 verifiable without Python), generated and checked by `scripts/build_dist.py --check`; CI split into dual jobs (with/without PyYAML) × dual OS, covering the previously untested PARTIAL branch; installation docs gained zip and per-file raw recovery recipes (bash + PowerShell); the hard reference to a "resident hook file" became "client resident instruction (also re-read if the client persists it as a file)", and the flat build header overrides directory-only clauses so single-file clients do not trip the "stop if references cannot be read" rule.
 - **v4 second-review fixes**: added `project-notes` to the main routing table (index closure); self-check upgraded — missing PyYAML now yields PARTIAL with distinct exit codes `0/1/2` instead of a silent SKIP followed by "all passed", CN/EN alignment upgraded from item counts to structural fingerprints (which immediately caught a 6-vs-8 backtick drift in project-notes), and route checks now work in both directions; added `.github/workflows/verify.yml` CI gate; delegation layer notes which clauses apply in a single-person/single-agent setup, and memory maintenance notes the boundary against client-side preference/memory tools.
 - **v3 external review fixes**: both descriptions converted to `>-` block scalars (fixes strict-YAML failure in the English frontmatter); masking tightened from first-4+last-4 to last-4 only; API replay clause gained three preconditions and an explicit ban on bypassing managed-network policy; backend-specific details (`empty-body POST` / `STATIC·VOLATILE` / `result:true+taskId`) moved into `references/project-notes.md`, leaving only portable rules in the execution layer; MIT LICENSE and `scripts/verify_skill.py` added.
 - **v2 structural rework**: the main file keeps only high-frequency hard rules (≈55 lines); the execution layer, delegation layer, and memory maintenance move into `references/`, and the routing index becomes real; two new rules added — "never echo credentials" and "re-read after compaction or instance switch"; duplicate items merged (task list vs work items; sweeping skills vs asking before adding capabilities) to remove self-contradiction; environment facts moved out of the rule body into this document.

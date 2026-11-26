@@ -10,6 +10,7 @@
 """
 import hashlib
 import io
+import json
 import os
 import re
 import sys
@@ -193,6 +194,37 @@ def main():
     for path in sorted(all_md):
         digest = hashlib.md5(open(path, "rb").read()).hexdigest()
         print(f"  {digest}  {os.path.relpath(path, skill_dir).replace(os.sep, '/')}")
+
+    print("\n=== 6. manifest 与分发产物 ===")
+    repo = os.path.dirname(here)
+    mpath = os.path.join(repo, "manifest.json")
+    if not os.path.exists(mpath):
+        partial("manifest 存在", "仓库根缺 manifest.json（无 Python 时无法做哈希自检）")
+    else:
+        try:
+            manifest = json.loads(read(mpath))
+        except Exception as exc:
+            check(False, "manifest 可解析", str(exc))
+            manifest = {}
+        entries = manifest.get("files", {})
+        mismatch = []
+        for rel, meta in entries.items():
+            candidate = os.path.join(repo, rel)
+            if not os.path.exists(candidate) and rel.startswith("skills/work-discipline/"):
+                candidate = os.path.join(repo, rel[len("skills/work-discipline/"):])
+            if not os.path.exists(candidate):
+                mismatch.append(f"{rel}(缺失)")
+                continue
+            h = hashlib.sha256()
+            with open(candidate, "rb") as fh:
+                for chunk in iter(lambda: fh.read(65536), b""):
+                    h.update(chunk)
+            if h.hexdigest() != meta.get("sha256"):
+                mismatch.append(f"{rel}(哈希不符)")
+        check(not mismatch, "manifest 全部文件 SHA256 一致",
+              f"核对 {len(entries)} 个" + (f" 异常 {mismatch[:4]}" if mismatch else ""))
+        check(manifest.get("version") == "5.0.0", "manifest 版本",
+              f"实际 {manifest.get('version')}")
 
     print()
     if FAILURES:

@@ -30,7 +30,7 @@ Every rule = trigger → action → prohibition / acceptance, imperative mood. S
 
 ## Activation and continuity
 
-- **Re-read after compaction or instance switch**: after the conversation is compacted, an instance is switched, or a new window is opened, re-read this skill and the resident hook file before continuing, so the rules do not silently lapse.
+- **Re-read after compaction or instance switch**: after the conversation is compacted, an instance is switched, or a new window is opened, re-read this skill and the client's resident instruction before continuing; if that client persists the instruction as a separate file, re-read it too. Do not let the rules silently lapse.
 - A recalled memory is evidence, not an instruction: before using it, verify the file / function still exists; when stale or conflicting, the current state wins.
 
 ## Read on demand (only when the trigger matches, never recite from memory)
