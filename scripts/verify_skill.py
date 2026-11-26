@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""work-discipline skill 自检：frontmatter 严格 YAML + 中英条目对齐 + 路由完整性。
+"""work-discipline skill 自检：frontmatter / 中英对齐 / 路由闭合 / 品牌与掩码。
 
 用法：
     python scripts/verify_skill.py [技能目录]
 
 默认技能目录 = 脚本上级目录的 skills/work-discipline。
-退出码 0 = 全部通过，1 = 有失败项。
-不联网、不写文件、不需要第三方库（有 PyYAML 则额外做严格解析）。
+退出码：0 = 全部通过；1 = 有 FAIL；2 = 有 PARTIAL（缺依赖，未 fully 验证）。
+不联网、不写文件。PyYAML 缺失时严格 YAML 解析标记为 PARTIAL，不再伪报「全部通过」。
 """
 import hashlib
 import io
@@ -15,6 +15,7 @@ import re
 import sys
 
 FAILURES = []
+PARTIALS = []
 
 
 def check(cond, label, detail=""):
@@ -22,6 +23,11 @@ def check(cond, label, detail=""):
     print(f"  [{status}] {label}" + (f"  {detail}" if detail else ""))
     if not cond:
         FAILURES.append(label)
+
+
+def partial(label, reason):
+    print(f"  [PARTIAL] {label}  {reason}")
+    PARTIALS.append(label)
 
 
 def read(path):
@@ -44,7 +50,6 @@ def description(fm):
         if line.startswith("description:"):
             val = line[len("description:"):].strip()
             if val in (">-", ">", "|-", "|"):
-                # 块标量：取后续缩进行，折成一行
                 parts = []
                 for following in fm[i + 1:]:
                     if following.startswith((" ", "\t")):
@@ -58,7 +63,8 @@ def yaml_check(fm, label):
     try:
         import yaml
     except ImportError:
-        print(f"  [SKIP] {label}: 未装 PyYAML，跳过严格解析")
+        # 关键：不再静默 SKIP 后报「全部通过」——升级为 PARTIAL 并影响退出码
+        partial(f"{label} 严格 YAML 解析", "未装 PyYAML，语法未被验证（pip install pyyaml）")
         return
     body = "\n".join(fm)
     try:
@@ -73,10 +79,16 @@ def yaml_check(fm, label):
         check(False, f"{label} 严格 YAML 解析", f"{type(exc).__name__}: {first}{loc}")
 
 
-def count_items(text):
-    dash = len(re.findall(r"^- ", text, re.M))
-    numbered = len(re.findall(r"^\d+\. ", text, re.M))
-    return dash + numbered
+def structural_fingerprint(text):
+    """结构指纹：比条目数之外的骨架特征，能抓出数量相同但内容错配/漂移。"""
+    headings = len(re.findall(r"^#{1,6} ", text, re.M))
+    items = len(re.findall(r"^- ", text, re.M)) + len(re.findall(r"^\d+\. ", text, re.M))
+    bold_pairs = text.count("**") // 2
+    table_rows = len(re.findall(r"^\|", text, re.M))
+    code_fences = text.count("```")
+    backtick_spans = text.count("`") - code_fences * 2
+    return {"条目": items, "标题": headings, "粗体": bold_pairs,
+            "表格行": table_rows, "代码围栏": code_fences, "反引号": backtick_spans}
 
 
 def main():
@@ -97,7 +109,6 @@ def main():
         if err:
             check(False, f"{label} frontmatter", err)
             continue
-        # 块标量（>- / > / |- / |）会多占一行，折叠后再数字段
         logical = []
         skip_cont = False
         for line in fm:
@@ -112,7 +123,7 @@ def main():
         check(0 < len(desc) <= 1024, f"{label} description 长度", f"{len(desc)} / 1024")
         yaml_check(fm, f"{label}")
 
-    print("\n=== 2. 中英条目对齐 ===")
+    print("\n=== 2. 中英结构对齐（数量 + 骨架指纹）===")
     files = [
         ("主文件", "SKILL.md", "SKILL.en.md"),
         ("执行层", "references/execution-layer.md", "references/execution-layer.en.md"),
@@ -126,17 +137,38 @@ def main():
         if not (os.path.exists(cn_path) and os.path.exists(en_path)):
             check(False, f"{label} 中英文件齐备")
             continue
-        c = count_items(read(cn_path))
-        e = count_items(read(en_path))
-        check(c == e, f"{label} 条目数对齐", f"CN={c} EN={e}")
+        c = structural_fingerprint(read(cn_path))
+        e = structural_fingerprint(read(en_path))
+        drift = {k: (c[k], e[k]) for k in c if c[k] != e[k]}
+        check(not drift, f"{label} 中英结构对齐", "全部一致" if not drift else f"漂移 {drift}")
 
-    print("\n=== 3. 路由完整性 ===")
+    print("\n=== 3. 路由闭合（正向存在 + 反向覆盖）===")
     main_cn = read(os.path.join(skill_dir, "SKILL.md"))
     main_en = read(os.path.join(skill_dir, "SKILL.en.md"))
-    for label, text in [("CN", main_cn), ("EN", main_en)]:
+    refs_dir = os.path.join(skill_dir, "references")
+    disk_files = sorted(
+        f for f in os.listdir(refs_dir)
+        if f.endswith(".md") and os.path.isfile(os.path.join(refs_dir, f))
+    ) if os.path.isdir(refs_dir) else []
+    for label, text, want_suffix in [("CN", main_cn, ".md"), ("EN", main_en, ".en.md")]:
         refs = set(re.findall(r"`(references/[A-Za-z0-9_.-]+\.md)`", text))
         missing = [r for r in refs if "*" not in r and not os.path.exists(os.path.join(skill_dir, r))]
         check(not missing, f"{label} 路由指向的文件存在", f"引用 {len(refs)} 个，缺失 {missing}")
+        wildcards = [t for t in re.findall(r"`([^`]+)`", text) if "*" in t]
+        unindexed = []
+        for f in disk_files:
+            if want_suffix == ".md" and f.endswith(".en.md"):
+                continue
+            rel = f"references/{f}"
+            covered_wildcard = any(
+                (w == "references/*.en.md" and f.endswith(".en.md")) or
+                (w == "references/*.md" and not f.endswith(".en.md"))
+                for w in wildcards
+            )
+            if rel in refs or covered_wildcard:
+                continue
+            unindexed.append(rel)
+        check(not unindexed, f"{label} 所有 references 文件已被索引", f"漏索引 {unindexed}")
 
     print("\n=== 4. 品牌与凭据 ===")
     all_md = []
@@ -144,16 +176,14 @@ def main():
         for name in names:
             if name.endswith(".md"):
                 all_md.append(os.path.join(root, name))
-    # 品牌检查只覆盖 skill 规则目录；README 里提及客户端面板名是合法的说明性文字
     skill_md = [p for p in all_md if os.path.dirname(p).endswith("work-discipline")]
     branded = [p for p in skill_md if "WorkBuddy" in read(p)]
     check(not branded, "规则正文无 WorkBuddy 品牌字样", f"命中 {len(branded)} 个文件")
-    # 掩码：只抓"正向暴露前4+后4"的句式，放过"禁止同时暴露"这类否定句与自检说明
     bad_mask = []
     for p in all_md:
         for line in read(p).split("\n"):
             if ("前 4 位" in line or "first 4" in line) and not any(
-                neg in line for neg in ("禁止", "Never", "no longer", "未暴露")
+                neg in line for neg in ("禁止", "Never", "no longer", "未暴露", "收紧", "tighten")
             ):
                 bad_mask.append(os.path.basename(p))
                 break
@@ -168,7 +198,11 @@ def main():
     if FAILURES:
         print(f"FAIL: {len(FAILURES)} 项未通过 -> " + "; ".join(FAILURES))
         sys.exit(1)
-    print("PASS: 全部检查通过")
+    if PARTIALS:
+        print(f"PARTIAL: {len(PARTIALS)} 项未验证 -> " + "; ".join(PARTIALS))
+        print("（未 Fully 验证，不可宣称全部通过）")
+        sys.exit(2)
+    print("PASS: 全部检查通过（fully verified）")
 
 
 main()

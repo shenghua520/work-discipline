@@ -52,6 +52,7 @@
 
 ```text
 .
+├── .github/workflows/verify.yml     # CI：push / PR 自动跑自检
 ├── LICENSE                          # MIT
 ├── README.md                        # 本说明（中文）
 ├── README.en.md                     # 本说明（英文）
@@ -78,7 +79,9 @@
 python scripts/verify_skill.py
 ```
 
-检查 frontmatter 严格 YAML 解析（装了 PyYAML 才跑）、description 长度、中英条目对齐、路由指向的文件存在、无品牌字样、掩码规则未暴露前 4 位，并打印全部文件的 md5 供远端比对。不联网、不写文件、退出码 0 = 全通过。
+检查 frontmatter 严格 YAML 解析、description 长度、中英结构指纹对齐（条目 / 标题 / 粗体 / 表格行 / 代码围栏 / 反引号）、路由双向闭合（既查指向的文件存在，也查本地文件都被索引）、无品牌字样、掩码规则未暴露前 4 位，并打印全部文件的 md5 供远端比对。不联网、不写文件。
+
+**退出码语义**：`0` = 全部通过（fully verified）；`1` = 有 FAIL；`2` = 有 PARTIAL（如缺 PyYAML，语法未被验证）——**PARTIAL 不再伪报「全部通过」**。CI 在 push / PR 时自动跑并预装 PyYAML，所以仓库侧永远是 `0` 才算绿。
 
 ## 设计取舍：为什么拆成 references
 
@@ -114,6 +117,7 @@ python scripts/verify_skill.py
 
 ## 变更记录
 
+- **v4 复评修订**：主文件路由表补 `project-notes`（索引闭合）；自检脚本升级——缺 PyYAML 从 SKIP 改 PARTIAL 且退出码区分 `0/1/2`，中英对齐从"只比条目数"升级为结构指纹（当场抓出 project-notes 反引号 6 vs 8 的漂移），路由增加反向覆盖检查；加 `.github/workflows/verify.yml` CI 门禁；委托层注明单人单 agent 场景的适用边界，记忆维护注明与客户端偏好 / 记忆工具的双源边界。
 - **v3 外部评审修订**：中英 description 改 `>-` 块标量（修复英文版严格 YAML 解析失败）；掩码从「前4+后4」收紧为仅后 4 位；API 重放条款加三条限定并禁止绕过受管网络策略；执行层的特定后端细节（`空 body POST` / `STATIC·VOLATILE` / `result:true+taskId`）移入 `references/project-notes.md`，规则层只留可迁移骨架；补 MIT LICENSE 与 `scripts/verify_skill.py` 自检脚本。
 - **v2 结构重构**：主文件只留高频硬规则（≈55 行），执行层 / 委托层 / 记忆维护三章拆入 `references/`，路由索引改为真索引；新增「凭据不回显」「压缩或换实例后重读」两条规则；合并重复条目（任务清单与工作条目、扫技能与缺能力先问），消除自相矛盾；环境事实从规则正文移入本文件。
 - **v1**：补 README → 改名 workbuddy-memory → work-discipline → 首次创建并上传 SKILL.md。

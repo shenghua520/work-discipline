@@ -52,6 +52,7 @@ Chinese and English versions, rule by rule.
 
 ```text
 .
+├── .github/workflows/verify.yml     # CI: self-check on push / PR
 ├── LICENSE                          # MIT
 ├── README.md                        # this document (Chinese)
 ├── README.en.md                     # this document (English)
@@ -78,7 +79,9 @@ Chinese and English versions, rule by rule.
 python scripts/verify_skill.py
 ```
 
-Checks strict YAML parsing of frontmatter (only when PyYAML is installed), description length, CN/EN item alignment, existence of routed files, absence of brand names, and that the masking rule no longer exposes the first 4 characters. Prints md5 of every file for remote comparison. No network, no writes, exit code 0 = all passed.
+Checks strict YAML parsing of frontmatter, description length, CN/EN structural fingerprints (items / headings / bold pairs / table rows / code fences / backticks), bidirectional route closure (both "referenced files exist" and "all local files are indexed"), absence of brand names, and that the masking rule no longer exposes the first 4 characters. Prints md5 of every file for remote comparison. No network, no writes.
+
+**Exit codes**: `0` = fully verified; `1` = a FAIL; `2` = a PARTIAL (e.g. PyYAML missing, syntax not verified) — PARTIAL no longer masquerades as "all passed". CI runs on push / PR with PyYAML preinstalled, so only `0` is green on the repository side.
 
 ## Design trade-off: why references
 
@@ -114,6 +117,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v4 second-review fixes**: added `project-notes` to the main routing table (index closure); self-check upgraded — missing PyYAML now yields PARTIAL with distinct exit codes `0/1/2` instead of a silent SKIP followed by "all passed", CN/EN alignment upgraded from item counts to structural fingerprints (which immediately caught a 6-vs-8 backtick drift in project-notes), and route checks now work in both directions; added `.github/workflows/verify.yml` CI gate; delegation layer notes which clauses apply in a single-person/single-agent setup, and memory maintenance notes the boundary against client-side preference/memory tools.
 - **v3 external review fixes**: both descriptions converted to `>-` block scalars (fixes strict-YAML failure in the English frontmatter); masking tightened from first-4+last-4 to last-4 only; API replay clause gained three preconditions and an explicit ban on bypassing managed-network policy; backend-specific details (`empty-body POST` / `STATIC·VOLATILE` / `result:true+taskId`) moved into `references/project-notes.md`, leaving only portable rules in the execution layer; MIT LICENSE and `scripts/verify_skill.py` added.
 - **v2 structural rework**: the main file keeps only high-frequency hard rules (≈55 lines); the execution layer, delegation layer, and memory maintenance move into `references/`, and the routing index becomes real; two new rules added — "never echo credentials" and "re-read after compaction or instance switch"; duplicate items merged (task list vs work items; sweeping skills vs asking before adding capabilities) to remove self-contradiction; environment facts moved out of the rule body into this document.
 - **v1**: added README → renamed from workbuddy-memory to work-discipline → first created and uploaded SKILL.md.

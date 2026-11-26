@@ -43,6 +43,7 @@ This file keeps only high-frequency hard rules. The three detailed chapters live
 | --- | --- |
 | Online writes / bulk jobs / delegating to AI, teammates, or automations | `references/execution-layer.en.md` (seven-step method + three iron rules) and `references/delegation-layer.en.md` (four moments + how they interlock) |
 | Writing or editing memory files, maintaining this skill itself | `references/memory-maintenance.en.md` (four-question gate + phrasing + layering + freshness) |
+| Operating a specific backend, hitting its field / request quirks | `references/project-notes.en.md` (private parameters for one backend; void on other projects, do not carry them over) |
 | Chinese original | `SKILL.md` and `references/*.md` |
 
 ## This skill itself

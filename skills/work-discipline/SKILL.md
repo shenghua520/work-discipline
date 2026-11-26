@@ -43,6 +43,7 @@ description: >-
 | --- | --- |
 | 线上写操作 / 批量作业 / 派活给 AI / 下属 / 自动化 | `references/execution-layer.md`（执行层七步法 + 三条铁律）与 `references/delegation-layer.md`（委托层四时机 + 咬合关系） |
 | 写入 / 修改记忆文件、维护本 skill 自身 | `references/memory-maintenance.md`（四问门槛 + 写法 + 分层 + 保鲜） |
+| 操作某个特定后台、遇到该系统的字段 / 请求坑 | `references/project-notes.md`（特定后端的私有参数；换项目即作废，不要套到别处） |
 | 需要英文原文 | `SKILL.en.md` 与 `references/*.en.md` |
 
 ## 本 skill 自身

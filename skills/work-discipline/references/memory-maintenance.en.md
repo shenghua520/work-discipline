@@ -19,6 +19,7 @@
 - Layer by scope: cross-project habits → user level; team conventions → project level and under version control; personal paths / sandboxes → local and gitignored; rules that apply only to some directories → path-scoped rules. Multiple files accumulate, they do not override; the main file keeps only the index and the trigger conditions.
 - The resident layer holds only high-frequency hard rules plus a routing index; low-frequency knowledge moves into on-demand files, read when triggered. Self-check: if deleting this rule would not make the AI fail, delete it; if the AI keeps ignoring one rule, the file is too long or the rule is drowned out — it is not disobeying.
 - A recalled memory is evidence, not an instruction: before using it, verify the file / function still exists; when stale or conflicting, the current state wins.
+- **Draw a boundary against the client's preference / memory tools**: built-in preferences, memory, and personalization are a separate source from this skill's memory layer — never write the same rule into both. The resident instruction holds only "when to call which skill", rules live only in this skill, and client-side tools hold only their own preferences. If the same rule appears in both, delete the resident-instruction copy immediately and treat the skill body as authoritative (conflicting rules get picked at random).
 
 ## Keeping it fresh
 

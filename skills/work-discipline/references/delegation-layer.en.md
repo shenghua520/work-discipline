@@ -2,6 +2,7 @@
 
 > Trigger: giving a task away — delegating to AI, teammates, or automated instances.
 > Act at each moment; never recite a tutorial.
+> **Single person + single agent on a desktop**: the clauses below about "team / chief-of-staff / lead / teammates" apply only when multiple people or instances actually exist. In a solo setup keep only three items — restate before starting, accept only evidence at handoff, fix the environment when wrong. Skip the rest when the condition is not met; never invent a team just to apply the rule.
 
 ## Before starting
 
