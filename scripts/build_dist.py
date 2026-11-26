@@ -146,6 +146,63 @@ def expected_manifest(cn_flat, en_flat):
     }
 
 
+def doc_consistency():
+    """静态门禁：README 的安装树 / 下载循环必须与实际产物一致。
+
+    不联网、不执行 README 里的命令——只做结构化比对。这样把「文档也是产物」纳入
+    --check，又不会让 CI 依赖 raw.githubusercontent.com 的可用性。
+    """
+    problems = []
+    skill_files = ["SKILL.md", "SKILL.en.md"]
+    refs_dir = os.path.join(SKILL, "references")
+    ref_files = sorted(f for f in os.listdir(refs_dir) if f.endswith(".md")) if os.path.isdir(refs_dir) else []
+    expected = set(skill_files + ["references/" + f for f in ref_files])
+
+    for readme in ("README.md", "README.en.md"):
+        path = os.path.join(ROOT, readme)
+        if not os.path.exists(path):
+            problems.append(f"{readme} 缺失")
+            continue
+        lines = read(path).split("\n")
+
+        # 安装树：按缩进分组，nested 层必须正好是 references 下的全部文件
+        start = next((i for i, l in enumerate(lines) if "work-discipline/" in l and "└" in l), None)
+        if start is None:
+            problems.append(f"{readme} 缺安装树")
+        else:
+            tree = []
+            for line in lines[start + 1:]:
+                if line.strip().startswith("```"):
+                    break
+                s = line.strip()
+                if s.startswith(("├", "└")):
+                    tree.append((len(line) - len(line.lstrip()), s.lstrip("├└─ ").strip()))
+            if not tree:
+                problems.append(f"{readme} 安装树为空")
+            else:
+                base = min(i for i, _ in tree)
+                top = {n for i, n in tree if i == base}
+                nested = {n for i, n in tree if i > base}
+                if not {"SKILL.md", "SKILL.en.md", "references/"}.issubset(top):
+                    problems.append(f"{readme} 安装树根层缺项 {sorted(top)}")
+                if nested != set(ref_files):
+                    problems.append(f"{readme} 安装树 references 层 {sorted(nested)} != 实际 {ref_files}")
+
+        # 下载循环：bash 与 powershell 各找第一个循环块，必须覆盖全部规则文件
+        for pattern, marker in ((r"```bash\s*\n(.*?)```", "for f in"),
+                                (r"```powershell\s*\n(.*?)```", "$files = @(")):
+            import re
+            for block in re.findall(pattern, read(path), re.S):
+                if marker not in block:
+                    continue
+                listed = {f for f in expected if f in block}
+                missing = expected - listed
+                if missing:
+                    problems.append(f"{readme} 下载循环漏 {sorted(missing)}")
+                break
+    return problems
+
+
 def main():
     check_only = "--check" in sys.argv
     cn_flat = build_flat(HEADER_CN, "SKILL.md", REFS_CN, "cn")
@@ -161,6 +218,9 @@ def main():
             problems.append(f"不同步 {rel}（源文件已改但未重新生成）")
 
     expected = expected_manifest(cn_flat, en_flat)
+    doc_problems = doc_consistency()
+    problems.extend(doc_problems)
+
     if os.path.exists(MANIFEST):
         try:
             actual = json.loads(read(MANIFEST))

@@ -95,3 +95,58 @@ jobs:
           if [ "$nomf" -ne 2 ]; then echo "FAIL: expected exit 2 (PARTIAL) on no-manifest install, got $nomf"; exit 1; fi
           grep -q "安装副本哈希校验" /tmp/neg-nomanifest.txt || { echo "FAIL: no-manifest not reported as PARTIAL"; exit 1; }
           echo "PASS: negative tests caught content drift, missing file, and false-green install check"
+
+  # 文档门禁反向测试：安装树缩进错 / 下载循环漏文件 / 改名后品牌检查不能空转
+  verify-negative-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Documentation checks must catch real corruption
+        shell: bash
+        run: |
+          set -e
+          cp README.md /tmp/README.good
+          # 1) 树缩进错：把 memory-maintenance.md 掉回根层
+          python - <<'PY'
+          import io
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          t = t.replace("           ├── memory-maintenance.md", "       ├── memory-maintenance.md", 1)
+          io.open(p, "w", encoding="utf-8").write(t)
+          PY
+          set +e
+          python scripts/build_dist.py --check > /tmp/neg-tree.txt 2>&1
+          tree=$?
+          set -e
+          [ "$tree" -ne 0 ] || { echo "FAIL: broken install tree slipped through"; exit 1; }
+          grep -q "安装树" /tmp/neg-tree.txt || { echo "FAIL: tree error not attributed"; exit 1; }
+          cp /tmp/README.good README.md
+          # 2) 下载循环漏文件
+          python - <<'PY'
+          import io
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          t = t.replace("       references/project-notes.md references/project-notes.en.md; do", "", 1)
+          io.open(p, "w", encoding="utf-8").write(t)
+          PY
+          set +e
+          python scripts/build_dist.py --check > /tmp/neg-list.txt 2>&1
+          listing=$?
+          set -e
+          [ "$listing" -ne 0 ] || { echo "FAIL: incomplete download list slipped through"; exit 1; }
+          grep -q "下载循环漏" /tmp/neg-list.txt || { echo "FAIL: download-list error not attributed"; exit 1; }
+          cp /tmp/README.good README.md
+          # 3) 安装目录改名 + 注入品牌字样，品牌检查不许空转
+          rm -rf /tmp/wd-renamed && mkdir -p /tmp/wd-renamed
+          cp -r skills/work-discipline/. /tmp/wd-renamed/
+          printf '\nWorkBuddy injected\n' >> /tmp/wd-renamed/SKILL.md
+          set +e
+          python scripts/verify_skill.py /tmp/wd-renamed > /tmp/neg-brand.txt 2>&1
+          brand=$?
+          set -e
+          [ "$brand" -ne 0 ] || { echo "FAIL: brand check silently no-op after rename"; exit 1; }
+          grep -q "品牌字样" /tmp/neg-brand.txt || { echo "FAIL: brand check did not fire"; exit 1; }
+          echo "PASS: doc gate and rename-proof brand check all catch their corruptions"

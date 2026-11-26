@@ -68,6 +68,9 @@ Chinese and English versions, rule by rule.
      # the manifest lives at the repo root, not inside skills/ — fetch it separately
      curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/manifest.json" \
        -o "$DEST/manifest.json" || echo "FAILED: manifest.json"
+     # optional semantic self-check script (only useful with Python)
+     curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" \
+       -o "$DEST/verify_skill.py" || echo "FAILED: verify_skill.py"
      ```
 
    - **Per-file raw download (PowerShell)**:
@@ -87,13 +90,18 @@ Chinese and English versions, rule by rule.
      }
      # the manifest lives at the repo root — fetch it separately
      Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/manifest.json" -OutFile (Join-Path $dest "manifest.json")
+     # optional semantic self-check script
+     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" -OutFile (Join-Path $dest "verify_skill.py")
      ```
 
-   Verify with `manifest.json` SHA256 sums (below) — do not just check that files exist. To self-check an installed copy you must pass the manifest explicitly; otherwise the script refuses to present the repo's own manifest as a check of your directory:
+   Verify with `manifest.json` SHA256 sums (below) — do not just check that files exist.
 
-   ```bash
-   python scripts/verify_skill.py "$DEST" --manifest "$DEST/manifest.json"
-   ```
+   - **No Python / no script fetched**: hash self-verification only (`sha256sum` / `Get-FileHash`) — this is the fully offline route.
+   - **Python + script fetched**: semantic self-check. An installed copy must pass the manifest explicitly, otherwise the script refuses to present the repo's own manifest as a check of your directory:
+
+     ```bash
+     python "$DEST/verify_skill.py" "$DEST" --manifest "$DEST/manifest.json"
+     ```
 
 5. **Switching clients**: skill dirs, resident-instruction locations, and on-demand read support differ per client. Before installing, see the matrix in `docs/clients.md` (Chinese) / `docs/clients.en.md` (English) — every row carries an evidence level (verified locally / verified externally / not verified). **Clients that can only read a single file must use the `dist/` flat build, not the directory build.**
 
@@ -180,6 +188,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v7 documentation consistency**: the brand check dropped its "dirname ends with work-discipline" filter — renaming an install dir emptied the checked set and the check always passed (a silent no-op); it now collects md files under the passed-in directory. Fixed README install-tree indentation (four files had fallen back to the root level — copying by the diagram installed them in the wrong place). Download loops now fetch `scripts/verify_skill.py` and `manifest.json`, and self-check instructions split into two paths (with Python + script run semantic checks; otherwise hash verification only). `build_dist.py --check` gained a static documentation gate: README install tree matches actual references, and download loops cover every rule file — no network, no executing README commands, so CI stays independent of external availability. CI added `verify-negative-docs` covering broken tree indentation, incomplete download list, and a brand check that must not go silent after a rename.
 - **v6 verification-loop fix**: fixed "installed copy passes self-check falsely" — section 6 previously used the repo's own manifest to hash the repo's own files, unrelated to the target directory passed in. Now the repo manifest is auto-used only when the target is inside the repo layout; checking any installed copy requires explicit `--manifest`, otherwise it is marked PARTIAL (exit 2) instead of claiming a false green. Hash comparison is based on the target directory, covering only its 10 rule files. CI gained a negative-test job (deliberately pollutes an installed copy and asserts failure). README install tree gained both project-notes files, recovery loops fetch `manifest.json`, terminology unified to "client resident instruction", an unknown-client decision flow was added, and the flat build dropped a duplicate separator.
 - **v5 distribution-layer rework**: added `docs/clients.md` compatibility matrix (every row tagged verified-locally / verified-externally / not-verified); added `dist/` flat builds + `manifest.json` (SHA256 verifiable without Python), generated and checked by `scripts/build_dist.py --check`; CI split into dual jobs (with/without PyYAML) × dual OS, covering the previously untested PARTIAL branch; installation docs gained zip and per-file raw recovery recipes (bash + PowerShell); the hard reference to a "resident hook file" became "client resident instruction (also re-read if the client persists it as a file)", and the flat build header overrides directory-only clauses so single-file clients do not trip the "stop if references cannot be read" rule.
 - **v4 second-review fixes**: added `project-notes` to the main routing table (index closure); self-check upgraded — missing PyYAML now yields PARTIAL with distinct exit codes `0/1/2` instead of a silent SKIP followed by "all passed", CN/EN alignment upgraded from item counts to structural fingerprints (which immediately caught a 6-vs-8 backtick drift in project-notes), and route checks now work in both directions; added `.github/workflows/verify.yml` CI gate; delegation layer notes which clauses apply in a single-person/single-agent setup, and memory maintenance notes the boundary against client-side preference/memory tools.

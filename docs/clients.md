@@ -44,7 +44,7 @@ sha256sum skills/work-discipline/SKILL.md
 Get-FileHash -Algorithm SHA256 skills\work-discipline\SKILL.md
 ```
 
-`python scripts/verify_skill.py` 做语义层检查（frontmatter、中英对齐、路由闭合、品牌与掩码）；`python scripts/build_dist.py --check` 校验扁平版与 manifest 是否与源同步。两者都缺 Python 时，用 manifest 至少能证明"文件没被改过"。
+语义自检脚本 `scripts/verify_skill.py` **不在安装副本（10 个规则文件）里**，需从仓库另取；仓库内可用 `python scripts/verify_skill.py`，校验安装副本则要显式给清单：`python <脚本路径> <安装目录> --manifest <清单路径>`。`build_dist.py --check` 校验扁平版与 manifest 是否与源同步，同样只在仓库内有。没有 Python / 没拉脚本时，用 manifest 做哈希自证（`sha256sum` / `Get-FileHash`），这条完全离线。
 
 ## 未知客户端怎么判断（表追不上时就走这三步）
 

@@ -36,10 +36,10 @@
            ├── execution-layer.en.md
            ├── delegation-layer.md
            ├── delegation-layer.en.md
-       ├── memory-maintenance.md
-       ├── memory-maintenance.en.md
-       ├── project-notes.md
-       └── project-notes.en.md
+           ├── memory-maintenance.md
+           ├── memory-maintenance.en.md
+           ├── project-notes.md
+           └── project-notes.en.md
    ```
 
    ⚠️ **只拷 `SKILL.md` 会坏掉**：主文件里写着「涉及线上写操作、批量作业、派活时必须先读 `references/` 对应文件」，缺了这些文件，执行层与委托层的细则会整体失效，而且**是静默失效**——skill 照样能加载，只是规则被跳过。所以复制时务必带上整个目录。
@@ -68,6 +68,9 @@
      # 清单在仓库根，不在 skills 目录内——单独拉，否则无 Python 时无法核对
      curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/manifest.json" \
        -o "$DEST/manifest.json" || echo "FAILED: manifest.json"
+     # 语义自检脚本（可选：装了 Python 才用得上；不拉也能靠 manifest 做哈希自证）
+     curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" \
+       -o "$DEST/verify_skill.py" || echo "FAILED: verify_skill.py"
      ```
 
    - **逐文件 raw 下载（PowerShell）**：
@@ -87,13 +90,18 @@
      }
      # 清单在仓库根，不在 skills 目录内——单独拉
      Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/manifest.json" -OutFile (Join-Path $dest "manifest.json")
+     # 语义自检脚本（可选）
+     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" -OutFile (Join-Path $dest "verify_skill.py")
      ```
 
-   拉完用 `manifest.json` 核对 SHA256（见下），别只看文件在不在。装完后自检要**显式指定清单**，否则脚本拒绝把仓库自带清单当成对你的安装副本的校验结果：
+   拉完用 `manifest.json` 核对 SHA256（见下），别只看文件在不在。
 
-   ```bash
-   python scripts/verify_skill.py "$DEST" --manifest "$DEST/manifest.json"
-   ```
+   - **没有 Python / 没拉脚本**：直接哈希自证（`sha256sum` / `Get-FileHash`），这就是"完全离线"的验法。
+   - **装了 Python 且拉了脚本**：语义自检。安装副本必须**显式指定清单**，否则脚本拒绝把仓库自带清单当成对你的安装副本的校验结果：
+
+     ```bash
+     python "$DEST/verify_skill.py" "$DEST" --manifest "$DEST/manifest.json"
+     ```
 
 5. **换客户端**：不同软件的 skill 目录、常驻指令落点、按需读能力都不一样。装之前先看 `docs/clients.md`（中）/ `docs/clients.en.md`（英）的映射表——表里每条都标了证据等级（本机实测 / 外部实测 / 未实测）。**只能读单文件的客户端请改用 `dist/` 扁平版，不要装目录版。**
 
@@ -180,6 +188,7 @@ python scripts/build_dist.py --check        # 扁平版与 manifest 是否与源
 
 ## 变更记录
 
+- **v7 说明书一致性**：品牌检查去掉「目录名以 work-discipline 结尾」的过滤（安装目录一改名被检集合变空集、检查恒过——静默失效），改为以传入目录为根收集 md；README 安装树缩进修复（4 个文件曾掉回根层，照图拷会装错目录）；下载循环补拉 `scripts/verify_skill.py` 与 `manifest.json`，并把「自检命令」明确分成两条路（有 Python + 脚本跑语义自检；否则只做哈希自证）；`build_dist.py --check` 增加文档静态门禁——校验 README 安装树与实际 references 一致、下载循环覆盖全部规则文件（不联网、不执行 README 命令，避免 CI 依赖外部网络）；CI 加 `verify-negative-docs` job 覆盖树缩进错、下载清单漏、改名后品牌检查空转三类反向测试。
 - **v6 校验闭环修复**：修复「装完后自检误报通过」——第 6 节原本用脚本所在仓库的清单校验仓库自己的文件，与传入的安装目录无关；现在目标在仓库布局内才自动用仓库清单，校验任意安装副本必须显式 `--manifest`，否则标记 PARTIAL（exit 2）拒绝伪绿；哈希比对基准从仓库路径改为被校验目录，只比对其中的 10 个规则文件。CI 加反向测试 job（故意污染一份安装副本断言失败）。README 安装树补齐 project-notes 两份、恢复循环补拉 `manifest.json`；术语统一为「客户端常驻指令」；未知客户端加三步判定流程；扁平版去掉重复分隔符。
 - **v5 发行层改造**：加 `docs/clients.md` 客户端适配表（每条标本机实测 / 外部实测 / 未实测）；加 `dist/` 扁平版 + `manifest.json`（SHA256 无 Python 也能验），配 `scripts/build_dist.py` 生成与 `--check` 同步校验；CI 拆双 job（有/无 PyYAML）× 双平台，专门覆盖之前测不到的 PARTIAL 分支；安装说明补 zip 与逐文件 raw（bash + PowerShell）两条非 git 恢复路；「常驻钩子文件」硬引用改成「客户端常驻指令（落成独立文件时一并重读）」，扁平版文件头声明覆盖目录版专属条款，避免单文件客户端误触发「读不到 references 就报错」。
 - **v4 复评修订**：主文件路由表补 `project-notes`（索引闭合）；自检脚本升级——缺 PyYAML 从 SKIP 改 PARTIAL 且退出码区分 `0/1/2`，中英对齐从"只比条目数"升级为结构指纹（当场抓出 project-notes 反引号 6 vs 8 的漂移），路由增加反向覆盖检查；加 `.github/workflows/verify.yml` CI 门禁；委托层注明单人单 agent 场景的适用边界，记忆维护注明与客户端偏好 / 记忆工具的双源边界。

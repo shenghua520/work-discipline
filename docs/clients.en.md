@@ -44,7 +44,7 @@ sha256sum skills/work-discipline/SKILL.md
 Get-FileHash -Algorithm SHA256 skills\work-discipline\SKILL.md
 ```
 
-`python scripts/verify_skill.py` checks semantics (frontmatter, CN/EN alignment, routing closure, brand and masking); `python scripts/build_dist.py --check` verifies the flat build and manifest are in sync with sources. With no Python at all, the manifest still proves "files were not modified".
+The semantic self-check script `scripts/verify_skill.py` is **not part of the 10-file installed copy** — fetch it from the repo separately. Inside the repo use `python scripts/verify_skill.py`; to check an installed copy pass the manifest explicitly: `python <script> <install-dir> --manifest <manifest>`. `build_dist.py --check` (repo only) verifies flat builds and manifest against sources. Without Python or the script, use the manifest for hash self-verification (`sha256sum` / `Get-FileHash`) — fully offline.
 
 ## Unknown client? Answer three questions
 

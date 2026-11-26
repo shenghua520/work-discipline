@@ -1,20 +1,20 @@
 {
   "files": {
     ".github/workflows/verify.yml": {
-      "sha256": "f4a731e71772ee2b828318e989bb5e7d42b94e4a04916426a4a7a8b7f03f40ca",
-      "size": 4278
+      "sha256": "63c99977c78a81f19ce257ee4bbeecf0ce82580ca363579744238eaf70f2b8ae",
+      "size": 6871
     },
     "LICENSE": {
       "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "a8dfabf46b38ed5f47c59759723fb940f5fdc5dc7023a2ce5be15a904e417011",
-      "size": 17452
+      "sha256": "003443f6ced946d6979d11479386c2373b7574068da325c4d573a3fa7503a8b6",
+      "size": 19090
     },
     "README.md": {
-      "sha256": "1796aeca26684c6077063073e22634840fa0231822fdf72722c22f139881c0ca",
-      "size": 15650
+      "sha256": "76c81703a929d17c011e197519fb869135cea8e24e7780c5dd0cdd958109db7e",
+      "size": 17187
     },
     "dist/work-discipline.flat.en.md": {
       "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
@@ -25,20 +25,20 @@
       "size": 16662
     },
     "docs/clients.en.md": {
-      "sha256": "032b4add1127c70b94d3ec49da68edbdbf5d12df8ed593ee38bad90cb3ada470",
-      "size": 6027
+      "sha256": "6f5fb117f948c4396616f6dc3c81fecf6e756d66adf1b00e3c3317cc772c73c8",
+      "size": 6250
     },
     "docs/clients.md": {
-      "sha256": "d9723fe8ebf3396293ae313ad0c5b2b957bdbc0f1ded74d801f245ff87da9831",
-      "size": 5598
+      "sha256": "45508b939dd38fdd27e9c87ad60f4bae0d4ed20128006025551d5450753b61db",
+      "size": 5812
     },
     "scripts/build_dist.py": {
-      "sha256": "8d217c275626016b6eb3c5ba2f8fbd1d991efa23bc78d0821e128fd9e36d5063",
-      "size": 8511
+      "sha256": "8bbc16eefa47fe7d1add2dd73702370e3d53ea3e8baffea878d98417c8620279",
+      "size": 11307
     },
     "scripts/verify_skill.py": {
-      "sha256": "ac911345d39605d2725d0697c793c140f07afe89d4702104620059b31fb02fd9",
-      "size": 11970
+      "sha256": "34ce0b34645c7ceb15b239e1edd800a9e09b40ad8251d3c1146c714aad2bcc45",
+      "size": 12126
     },
     "skills/work-discipline/SKILL.en.md": {
       "sha256": "69b9970c306b8e1d03d3c2297be6f838d8e0f35e005922a2f2b0b084473c387d",

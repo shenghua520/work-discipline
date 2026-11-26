@@ -187,9 +187,11 @@ def main():
         for name in names:
             if name.endswith(".md"):
                 all_md.append(os.path.join(root, name))
-    skill_md = [p for p in all_md if os.path.dirname(p).endswith("work-discipline")]
-    branded = [p for p in skill_md if "WorkBuddy" in read(p)]
-    check(not branded, "规则正文无 WorkBuddy 品牌字样", f"命中 {len(branded)} 个文件")
+    # all_md 已由 os.walk(skill_dir) 收集，天然限定在被校验目录内。
+    # 不要再按目录名过滤——安装目录一改名，被检集合会变空集，检查恒过（静默失效）。
+    branded = [p for p in all_md if "WorkBuddy" in read(p)]
+    check(not branded, "规则正文无 WorkBuddy 品牌字样",
+          f"检查 {len(all_md)} 个 md，命中 {len(branded)} 个")
     bad_mask = []
     for p in all_md:
         for line in read(p).split("\n"):
