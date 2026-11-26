@@ -1,44 +1,39 @@
 #!/usr/bin/env python3
-"""生成分发产物：扁平版 SKILL + manifest.json；或校验它们与源同步。
+"""生成分发产物：扁平版 SKILL + manifest.json + README 中的事实块；或校验它们与源同步。
 
 用法：
-    python scripts/build_dist.py          # 生成
+    python scripts/build_dist.py          # 生成（含 README 生成块回填）
     python scripts/build_dist.py --check  # 只校验，不写文件（CI 用）
 
-退出码：0 = 同步/生成成功；1 = 生成物与源不一致。
-纯标准库，无第三方依赖。
+退出码：0 = 同步/生成成功；1 = 不同步。纯标准库，无第三方依赖。
+
+设计：分发文件清单（RULE_FILES）是唯一事实源（SSOT）。安装树、bash/PS 下载循环、
+仓库结构树里的 skills 子树全部由它生成，用 <!-- BEGIN/END GENERATED:key --> 标记包裹。
+--check 只比对「生成块逐字同步」，覆盖面是全部生成块，不再靠人猜哪些事实要校验。
 """
 import hashlib
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DIST = os.path.join(ROOT, "dist")
 MANIFEST = os.path.join(ROOT, "manifest.json")
+REPO_RAW = "https://raw.githubusercontent.com/shenghua520/work-discipline/main"
 
-
-def find_skill_dir():
-    """两种布局都支持：仓库布局 skills/work-discipline/，暂存布局直接放 ROOT 根。"""
-    repo_layout = os.path.join(ROOT, "skills", "work-discipline")
-    if os.path.exists(os.path.join(repo_layout, "SKILL.md")):
-        return repo_layout
-    if os.path.exists(os.path.join(ROOT, "SKILL.md")):
-        return ROOT
-    raise SystemExit("找不到 SKILL.md：既不在 skills/work-discipline/，也不在 ROOT 根")
-
-
-SKILL = find_skill_dir()
-
-REFS_CN = [
-    "execution-layer.md", "delegation-layer.md",
-    "memory-maintenance.md", "project-notes.md",
+# ===== SSOT：分发文件清单 =====
+RULE_FILES = [
+    "SKILL.md", "SKILL.en.md",
+    "references/execution-layer.md", "references/execution-layer.en.md",
+    "references/delegation-layer.md", "references/delegation-layer.en.md",
+    "references/memory-maintenance.md", "references/memory-maintenance.en.md",
+    "references/project-notes.md", "references/project-notes.en.md",
 ]
-REFS_EN = [
-    "execution-layer.en.md", "delegation-layer.en.md",
-    "memory-maintenance.en.md", "project-notes.en.md",
-]
+EXTRA_FILES = ["manifest.json", "scripts/verify_skill.py"]
+REFS_CN = ["execution-layer.md", "delegation-layer.md", "memory-maintenance.md", "project-notes.md"]
+REFS_EN = [f.replace(".md", ".en.md") for f in REFS_CN]
 
 HEADER_CN = """# work-discipline · 扁平版（分发用）
 
@@ -66,6 +61,11 @@ def read(path):
         return fh.read()
 
 
+def write(path, content):
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write(content)
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -83,19 +83,215 @@ def strip_frontmatter(text):
     return text
 
 
-def build_flat(header, main_file, refs, lang):
+def find_skill_dir():
+    repo_layout = os.path.join(ROOT, "skills", "work-discipline")
+    if os.path.exists(os.path.join(repo_layout, "SKILL.md")):
+        return repo_layout
+    if os.path.exists(os.path.join(ROOT, "SKILL.md")):
+        return ROOT
+    raise SystemExit("找不到 SKILL.md：既不在 skills/work-discipline/，也不在 ROOT 根")
+
+
+SKILL = find_skill_dir()
+
+
+def build_flat(header, main_file, refs):
     parts = [header.rstrip("\n"), strip_frontmatter(read(os.path.join(SKILL, main_file))).rstrip()]
     for name in refs:
         parts.append(read(os.path.join(SKILL, "references", name)).rstrip())
     return "\n\n---\n\n".join(parts) + "\n"
 
 
-def tracked_files():
-    """需要纳入 manifest 的文件；路径一律写成仓库相对路径。
+# ===== README 生成块：全部由 RULE_FILES / EXTRA_FILES 派生 =====
+def gen_install_tree(lang):
+    root_label = "<用户级 skills 目录>/" if lang == "cn" else "<user-level skills dir>/"
+    lines = ["```text", root_label, "└── work-discipline/",
+             "    ├── SKILL.md", "    ├── SKILL.en.md", "    └── references/"]
+    refs = REFS_CN if lang == "cn" else REFS_EN
+    for i, r in enumerate(refs):
+        lines.append("        " + ("└── " if i == len(refs) - 1 else "├── ") + r)
+    lines.append("```")
+    return "\n".join("   " + l for l in lines)
 
-    暂存布局里 SKILL.md / references/ 直接放 ROOT 根，但推送时会映射到
-    skills/work-discipline/。manifest 必须提前按映射后的路径记录，否则推上去就对不上。
-    """
+
+def gen_bash_download(lang):
+    dest = "$HOME/.workbuddy/skills/work-discipline" if lang == "cn" else "$HOME/.claude/skills/work-discipline"
+    c1 = "# 按客户端调整" if lang == "cn" else "# adjust for your client"
+    c2 = ("# 清单在仓库根，不在 skills 目录内——单独拉，否则无 Python 时无法核对" if lang == "cn"
+          else "# the manifest lives at the repo root, not inside skills/ — fetch it separately")
+    c3 = ("# 语义自检脚本（可选：装了 Python 才用得上；不拉也能靠 manifest 做哈希自证）" if lang == "cn"
+          else "# optional semantic self-check script (only useful with Python)")
+    lines = ["```bash",
+             f'BASE="{REPO_RAW}/skills/work-discipline"',
+             f'DEST="{dest}"   {c1}']
+    # for 循环：按 SSOT 顺序，每两行一组
+    refs = [f for f in RULE_FILES if f.startswith("references/")]
+    mains = [f for f in RULE_FILES if not f.startswith("references/")]
+    first = mains + refs[:2]
+    lines.append("for f in " + " ".join(first) + " \\")
+    rest = refs[2:]
+    for i in range(0, len(rest), 2):
+        chunk = rest[i:i + 2]
+        suffix = " \\" if i + 2 < len(rest) else "; do"
+        lines.append("  " + " ".join(chunk) + suffix)
+    if not rest:
+        lines[-1] = lines[-1].replace(" \\", "; do")
+    lines += ["  mkdir -p \"$DEST/$(dirname \"$f\")\"",
+              '  curl -fsSL "$BASE/$f" -o "$DEST/$f" || echo "FAILED: $f"',
+              "done",
+              c2,
+              f'curl -fsSL "{REPO_RAW}/manifest.json" \\',
+              '  -o "$DEST/manifest.json" || echo "FAILED: manifest.json"',
+              c3,
+              f'curl -fsSL "{REPO_RAW}/scripts/verify_skill.py" \\',
+              '  -o "$DEST/verify_skill.py" || echo "FAILED: verify_skill.py"',
+              "```"]
+    return "\n".join("     " + l for l in lines)
+
+
+def gen_ps_download(lang):
+    dest = "$env:USERPROFILE\\.workbuddy\\skills\\work-discipline" if lang == "cn" else "$env:USERPROFILE\\.workbuddy\\skills\\work-discipline"
+    note = "# 按客户端调整" if lang == "cn" else "# adjust for your client"
+    c1 = "# 清单在仓库根，不在 skills 目录内——单独拉" if lang == "cn" else "# the manifest lives at the repo root — fetch it separately"
+    c2 = "# 语义自检脚本（可选）" if lang == "cn" else "# optional semantic self-check script"
+    lines = ["```powershell",
+             f'$base = "{REPO_RAW}/skills/work-discipline"',
+             f'$dest = "{dest}"  {note}',
+             '$files = @("SKILL.md","SKILL.en.md",']
+    refs = [f for f in RULE_FILES if f.startswith("references/")]
+    for i, r in enumerate(refs):
+        comma = "," if i < len(refs) - 1 else ""
+        lines.append('  "' + r + '"' + comma)
+    lines += [")",
+              "foreach ($f in $files) {",
+              "  $out = Join-Path $dest ($f -replace '/', '\\')",
+              "  New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null",
+              '  Invoke-WebRequest -Uri "$base/$f" -OutFile $out',
+              "}",
+              c1,
+              f'Invoke-WebRequest -Uri "{REPO_RAW}/manifest.json" -OutFile (Join-Path $dest "manifest.json")',
+              c2,
+              f'Invoke-WebRequest -Uri "{REPO_RAW}/scripts/verify_skill.py" -OutFile (Join-Path $dest "verify_skill.py")',
+              "```"]
+    return "\n".join("     " + l for l in lines)
+
+
+def gen_repo_tree(lang):
+    # 上半部分（非 skill）是固定骨架；下半部分的 references 子树由 SSOT 派生。
+    if lang == "cn":
+        head = [
+            "```text", ".",
+            "├── .github/workflows/verify.yml     # CI：双 job（有/无 PyYAML）× 双平台",
+            "├── LICENSE                          # MIT",
+            "├── README.md                        # 本说明（中文）",
+            "├── README.en.md                     # 本说明（英文）",
+            "├── docs/",
+            "│   ├── clients.md                   # 客户端适配表（中文，标证据等级）",
+            "│   └── clients.en.md                # 客户端适配表（英文）",
+            "├── dist/",
+            "│   ├── work-discipline.flat.md      # 扁平版（无 references，给单文件客户端）",
+            "│   └── work-discipline.flat.en.md",
+            "├── manifest.json                    # 全文件 SHA256 + 字节数（无 Python 也能验）",
+            "├── scripts/",
+            "│   ├── verify_skill.py              # 语义自检：frontmatter + 中英对齐 + 路由",
+            "│   └── build_dist.py                # 生成/校验扁平版与 manifest",
+            "└── skills/",
+            "    └── work-discipline/",
+        ]
+    else:
+        head = [
+            "```text", ".",
+            "├── .github/workflows/verify.yml     # CI: dual job (with/without PyYAML) × dual OS",
+            "├── LICENSE                          # MIT",
+            "├── README.md                        # this document (Chinese)",
+            "├── README.en.md                     # this document (English)",
+            "├── docs/",
+            "│   ├── clients.md                   # client matrix (Chinese, evidence levels)",
+            "│   └── clients.en.md                # client matrix (English)",
+            "├── dist/",
+            "│   ├── work-discipline.flat.md      # flat build (for single-file clients)",
+            "│   └── work-discipline.flat.en.md",
+            "├── manifest.json                    # SHA256 + byte count for every file",
+            "├── scripts/",
+            "│   ├── verify_skill.py              # semantic self-check",
+            "│   └── build_dist.py                # build / verify flat builds and manifest",
+            "└── skills/",
+            "    └── work-discipline/",
+        ]
+    lines = list(head)
+    notes = {
+        "execution-layer.md": "      # 执行层七步法 + 三条铁律" if lang == "cn" else "      # seven-step method + three iron rules",
+        "delegation-layer.md": "     # 委托层四时机" if lang == "cn" else "     # four moments of delegation",
+        "memory-maintenance.md": "   # 记忆维护规则" if lang == "cn" else "   # memory maintenance rules",
+        "project-notes.md": "        # 特定后端的私有经验（换项目即作废）" if lang == "cn" else "        # backend-specific notes (void elsewhere)",
+    }
+    lines.append("        ├── SKILL.md" + ("                 # 规则主文件 · 中文 · 唯一入口" if lang == "cn" else "                 # main rule file · Chinese · sole entry point"))
+    lines.append("        ├── SKILL.en.md" + ("              # 规则主文件 · 英文" if lang == "cn" else "              # main rule file · English"))
+    lines.append("        └── references/")
+    refs = REFS_CN if lang == "cn" else REFS_EN
+    for i, r in enumerate(refs):
+        conn = "└── " if i == len(refs) - 1 else "├── "
+        base = r.replace(".en.md", ".md")
+        comment = notes.get(base, "")
+        lines.append("            " + conn + r + comment)
+    lines.append("```")
+    return "\n".join(lines)
+
+
+GENERATORS = {
+    "install-tree": gen_install_tree,
+    "bash-download": gen_bash_download,
+    "ps-download": gen_ps_download,
+    "repo-tree": gen_repo_tree,
+}
+README_FILES = [("README.md", "cn"), ("README.en.md", "en")]
+
+
+def render_blocks(lang):
+    return {key: fn(lang) for key, fn in GENERATORS.items()}
+
+
+def doc_blocks_status():
+    """校验 README 里每个 GENERATED 块是否与源派生内容逐字一致。"""
+    problems = []
+    for filename, lang in README_FILES:
+        path = os.path.join(ROOT, filename)
+        if not os.path.exists(path):
+            problems.append(f"{filename} 缺失")
+            continue
+        text = read(path)
+        expected = render_blocks(lang)
+        for key, want in expected.items():
+            pattern = re.compile(
+                r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
+                re.S | re.M)
+            m = pattern.search(text)
+            if not m:
+                problems.append(f"{filename} 缺生成标记 {key}")
+            elif m.group(2) != want:
+                problems.append(f"{filename} 生成块 {key} 不同步")
+    return problems
+
+
+def regenerate_readme_blocks():
+    """把生成块内容回填进 README（只改标记之间的内容，标记外的手工段落不动）。"""
+    for filename, lang in README_FILES:
+        path = os.path.join(ROOT, filename)
+        if not os.path.exists(path):
+            continue
+        text = read(path)
+        for key, want in render_blocks(lang).items():
+            pattern = re.compile(
+                r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
+                re.S | re.M)
+            new_text, n = pattern.subn(lambda m: m.group(1) + want + m.group(3), text)
+            if n:
+                text = new_text
+        write(path, text)
+        print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块")
+
+
+def tracked_files():
     out = []
     for root, dirs, names in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d != ".git"]
@@ -111,7 +307,6 @@ def tracked_files():
 
 
 def disk_path(repo_rel):
-    """仓库相对路径 → 实际磁盘路径（暂存布局下 skill 文件在 ROOT 根）。"""
     direct = os.path.join(ROOT, repo_rel)
     if os.path.exists(direct):
         return direct
@@ -125,11 +320,7 @@ def expected_manifest(cn_flat, en_flat):
     files = {}
     for rel in tracked_files():
         full = disk_path(rel)
-        files[rel] = {
-            "sha256": sha256(full),
-            "size": os.path.getsize(full),
-        }
-    # 生成物的哈希按内存内容算，避免落盘顺序影响
+        files[rel] = {"sha256": sha256(full), "size": os.path.getsize(full)}
     files["dist/work-discipline.flat.md"] = {
         "sha256": hashlib.sha256(cn_flat.encode("utf-8")).hexdigest(),
         "size": len(cn_flat.encode("utf-8")),
@@ -139,74 +330,17 @@ def expected_manifest(cn_flat, en_flat):
         "size": len(en_flat.encode("utf-8")),
     }
     return {
-        "version": "5.0.0",
+        "version": "6.0.0",
         "schema": "sha256+size; verify with sha256sum / certutil / Get-FileHash, no Python needed",
         "note": "manifest.json itself is intentionally excluded to avoid a self-reference cycle.",
         "files": files,
     }
 
 
-def doc_consistency():
-    """静态门禁：README 的安装树 / 下载循环必须与实际产物一致。
-
-    不联网、不执行 README 里的命令——只做结构化比对。这样把「文档也是产物」纳入
-    --check，又不会让 CI 依赖 raw.githubusercontent.com 的可用性。
-    """
-    problems = []
-    skill_files = ["SKILL.md", "SKILL.en.md"]
-    refs_dir = os.path.join(SKILL, "references")
-    ref_files = sorted(f for f in os.listdir(refs_dir) if f.endswith(".md")) if os.path.isdir(refs_dir) else []
-    expected = set(skill_files + ["references/" + f for f in ref_files])
-
-    for readme in ("README.md", "README.en.md"):
-        path = os.path.join(ROOT, readme)
-        if not os.path.exists(path):
-            problems.append(f"{readme} 缺失")
-            continue
-        lines = read(path).split("\n")
-
-        # 安装树：按缩进分组，nested 层必须正好是 references 下的全部文件
-        start = next((i for i, l in enumerate(lines) if "work-discipline/" in l and "└" in l), None)
-        if start is None:
-            problems.append(f"{readme} 缺安装树")
-        else:
-            tree = []
-            for line in lines[start + 1:]:
-                if line.strip().startswith("```"):
-                    break
-                s = line.strip()
-                if s.startswith(("├", "└")):
-                    tree.append((len(line) - len(line.lstrip()), s.lstrip("├└─ ").strip()))
-            if not tree:
-                problems.append(f"{readme} 安装树为空")
-            else:
-                base = min(i for i, _ in tree)
-                top = {n for i, n in tree if i == base}
-                nested = {n for i, n in tree if i > base}
-                if not {"SKILL.md", "SKILL.en.md", "references/"}.issubset(top):
-                    problems.append(f"{readme} 安装树根层缺项 {sorted(top)}")
-                if nested != set(ref_files):
-                    problems.append(f"{readme} 安装树 references 层 {sorted(nested)} != 实际 {ref_files}")
-
-        # 下载循环：bash 与 powershell 各找第一个循环块，必须覆盖全部规则文件
-        for pattern, marker in ((r"```bash\s*\n(.*?)```", "for f in"),
-                                (r"```powershell\s*\n(.*?)```", "$files = @(")):
-            import re
-            for block in re.findall(pattern, read(path), re.S):
-                if marker not in block:
-                    continue
-                listed = {f for f in expected if f in block}
-                missing = expected - listed
-                if missing:
-                    problems.append(f"{readme} 下载循环漏 {sorted(missing)}")
-                break
-    return problems
-
-
 def main():
     check_only = "--check" in sys.argv
-    cn_flat = build_flat(HEADER_CN, "SKILL.md", REFS_CN, "cn")
-    en_flat = build_flat(HEADER_EN, "SKILL.en.md", REFS_EN, "en")
+    cn_flat = build_flat(HEADER_CN, "SKILL.md", REFS_CN)
+    en_flat = build_flat(HEADER_EN, "SKILL.en.md", REFS_EN)
 
     problems = []
     for rel, content in [("dist/work-discipline.flat.md", cn_flat),
@@ -217,9 +351,8 @@ def main():
         elif read(full) != content:
             problems.append(f"不同步 {rel}（源文件已改但未重新生成）")
 
+    problems.extend(doc_blocks_status())
     expected = expected_manifest(cn_flat, en_flat)
-    doc_problems = doc_consistency()
-    problems.extend(doc_problems)
 
     if os.path.exists(MANIFEST):
         try:
@@ -243,7 +376,7 @@ def main():
                 print(f"  DIFF {p}")
             print(f"FAIL: {len(problems)} 项不同步")
             sys.exit(1)
-        print(f"PASS: 扁平版与 manifest 均与源同步（{len(expected['files'])} 个文件）")
+        print(f"PASS: 扁平版 / manifest / README 生成块均与源同步（{len(expected['files'])} 个文件）")
         return
 
     if problems:
@@ -251,15 +384,16 @@ def main():
         for p in problems:
             print("  ", p)
 
+    # 顺序：先回填 README（会改 README 哈希），再算 manifest
+    regenerate_readme_blocks()
+    expected = expected_manifest(cn_flat, en_flat)
+
     os.makedirs(DIST, exist_ok=True)
     for rel, content in [("dist/work-discipline.flat.md", cn_flat),
                          ("dist/work-discipline.flat.en.md", en_flat)]:
-        with open(os.path.join(ROOT, rel), "w", encoding="utf-8", newline="") as fh:
-            fh.write(content)
+        write(os.path.join(ROOT, rel), content)
         print(f"  写入 {rel}  {len(content.encode('utf-8'))} B")
-    with open(MANIFEST, "w", encoding="utf-8", newline="") as fh:
-        json.dump(expected, fh, ensure_ascii=False, indent=2, sort_keys=True)
-        fh.write("\n")
+    write(MANIFEST, json.dumps(expected, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     print(f"  写入 manifest.json  {len(expected['files'])} 个文件")
     print("PASS: 生成完成")
 

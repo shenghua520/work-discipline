@@ -1,20 +1,20 @@
 {
   "files": {
     ".github/workflows/verify.yml": {
-      "sha256": "63c99977c78a81f19ce257ee4bbeecf0ce82580ca363579744238eaf70f2b8ae",
-      "size": 6871
+      "sha256": "35080b2a3c9b6e16729ed4a31ed9ccce2f72a5e157cc0ab60a2b3c604e104ea9",
+      "size": 6676
     },
     "LICENSE": {
       "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "003443f6ced946d6979d11479386c2373b7574068da325c4d573a3fa7503a8b6",
-      "size": 19090
+      "sha256": "1e5ec08f18a67911110117a605fde32154e52e100b3b98a6c16c2763c1cc7436",
+      "size": 19656
     },
     "README.md": {
-      "sha256": "76c81703a929d17c011e197519fb869135cea8e24e7780c5dd0cdd958109db7e",
-      "size": 17187
+      "sha256": "b1404a4aed60bf704c522758b37cdbf49626478eae8e6b62c879dd889216dfb7",
+      "size": 17851
     },
     "dist/work-discipline.flat.en.md": {
       "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
@@ -25,16 +25,16 @@
       "size": 16662
     },
     "docs/clients.en.md": {
-      "sha256": "6f5fb117f948c4396616f6dc3c81fecf6e756d66adf1b00e3c3317cc772c73c8",
-      "size": 6250
+      "sha256": "7cc825422b9a1e457aead378ee72ecbdb76bdf552d601f80b326a9383754324c",
+      "size": 6574
     },
     "docs/clients.md": {
-      "sha256": "45508b939dd38fdd27e9c87ad60f4bae0d4ed20128006025551d5450753b61db",
-      "size": 5812
+      "sha256": "b59c4e281526c9f996459f42543528bf839678c0902319704cb854086ea5bc60",
+      "size": 6128
     },
     "scripts/build_dist.py": {
-      "sha256": "8bbc16eefa47fe7d1add2dd73702370e3d53ea3e8baffea878d98417c8620279",
-      "size": 11307
+      "sha256": "062f66a512078440ddcd6efe9842bc188c322203cbd8c667a223d70148c80896",
+      "size": 18935
     },
     "scripts/verify_skill.py": {
       "sha256": "34ce0b34645c7ceb15b239e1edd800a9e09b40ad8251d3c1146c714aad2bcc45",
@@ -83,5 +83,5 @@
   },
   "note": "manifest.json itself is intentionally excluded to avoid a self-reference cycle.",
   "schema": "sha256+size; verify with sha256sum / certutil / Get-FileHash, no Python needed",
-  "version": "5.0.0"
+  "version": "6.0.0"
 }

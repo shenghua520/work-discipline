@@ -104,42 +104,36 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Documentation checks must catch real corruption
+      - name: Every generated block must be detectable when corrupted (CN + EN)
         shell: bash
         run: |
           set -e
-          cp README.md /tmp/README.good
-          # 1) 树缩进错：把 memory-maintenance.md 掉回根层
-          python - <<'PY'
-          import io
-          p = "README.md"
-          t = io.open(p, encoding="utf-8").read()
-          t = t.replace("           ├── memory-maintenance.md", "       ├── memory-maintenance.md", 1)
-          io.open(p, "w", encoding="utf-8").write(t)
+          cp README.md /tmp/good-cn.md && cp README.en.md /tmp/good-en.md
+          # 对四个生成块各注入一行垃圾；中英都测，不靠"代码路径同构"推断
+          for key in install-tree bash-download ps-download repo-tree; do
+            for f in README.md README.en.md; do
+              if [ "$f" = "README.md" ]; then cp /tmp/good-cn.md "$f"; else cp /tmp/good-en.md "$f"; fi
+              python - "$f" "$key" <<'PY'
+          import io,sys
+          fn,key=sys.argv[1],sys.argv[2]
+          t=io.open(fn,encoding="utf-8").read()
+          marker="<!-- END GENERATED:"+key+" -->"
+          i=t.find(marker)
+          assert i>0, f"missing marker {key} in {fn}"
+          t=t[:i]+"CORRUPTED-LINE\n"+t[i:]
+          io.open(fn,"w",encoding="utf-8").write(t)
           PY
-          set +e
-          python scripts/build_dist.py --check > /tmp/neg-tree.txt 2>&1
-          tree=$?
-          set -e
-          [ "$tree" -ne 0 ] || { echo "FAIL: broken install tree slipped through"; exit 1; }
-          grep -q "安装树" /tmp/neg-tree.txt || { echo "FAIL: tree error not attributed"; exit 1; }
-          cp /tmp/README.good README.md
-          # 2) 下载循环漏文件
-          python - <<'PY'
-          import io
-          p = "README.md"
-          t = io.open(p, encoding="utf-8").read()
-          t = t.replace("       references/project-notes.md references/project-notes.en.md; do", "", 1)
-          io.open(p, "w", encoding="utf-8").write(t)
-          PY
-          set +e
-          python scripts/build_dist.py --check > /tmp/neg-list.txt 2>&1
-          listing=$?
-          set -e
-          [ "$listing" -ne 0 ] || { echo "FAIL: incomplete download list slipped through"; exit 1; }
-          grep -q "下载循环漏" /tmp/neg-list.txt || { echo "FAIL: download-list error not attributed"; exit 1; }
-          cp /tmp/README.good README.md
-          # 3) 安装目录改名 + 注入品牌字样，品牌检查不许空转
+              set +e
+              python scripts/build_dist.py --check > /tmp/neg-doc.txt 2>&1
+              code=$?
+              set -e
+              [ "$code" -ne 0 ] || { echo "FAIL: $f/$key corruption slipped through"; exit 1; }
+              grep -q "$key" /tmp/neg-doc.txt || { echo "FAIL: $f/$key not attributed"; exit 1; }
+              echo "  caught $f/$key"
+            done
+          done
+          cp /tmp/good-cn.md README.md && cp /tmp/good-en.md README.en.md
+          # 安装目录改名 + 注入品牌字样，品牌检查不许空转
           rm -rf /tmp/wd-renamed && mkdir -p /tmp/wd-renamed
           cp -r skills/work-discipline/. /tmp/wd-renamed/
           printf '\nWorkBuddy injected\n' >> /tmp/wd-renamed/SKILL.md
@@ -149,4 +143,4 @@ jobs:
           set -e
           [ "$brand" -ne 0 ] || { echo "FAIL: brand check silently no-op after rename"; exit 1; }
           grep -q "品牌字样" /tmp/neg-brand.txt || { echo "FAIL: brand check did not fire"; exit 1; }
-          echo "PASS: doc gate and rename-proof brand check all catch their corruptions"
+          echo "PASS: all 4 generated blocks × CN/EN caught, plus rename-proof brand check"

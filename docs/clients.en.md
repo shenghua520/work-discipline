@@ -2,6 +2,8 @@
 
 The rules themselves are client-agnostic: plain imperatives, no brand names, no client-specific APIs. What binds this repo to a toolchain is the surrounding trio — **where to install, how to trigger, how to self-verify**. This table covers only those three.
 
+**About the numbers**: token counts (≈1.6k / ≈3.4k) are **estimates derived from character counts**, not measurements from any client; actual usage depends on tokenizer and implementation — order of magnitude only. "10 rule files" is a hard fact, defined by `RULE_FILES` in `build_dist.py` and enforced by `--check`.
+
 **Evidence level** (marked on every row; no blanks):
 
 - `Verified locally` — checked on this repo's maintenance machine, reproducible.

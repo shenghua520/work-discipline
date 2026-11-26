@@ -26,21 +26,19 @@ Chinese and English versions, rule by rule.
 
 1. **Copy the whole directory**: put `skills/work-discipline/` into the user-level skills directory (common shapes: `~/.workbuddy/skills/`, `~/.claude/skills/`), ending up as:
 
+   <!-- BEGIN GENERATED:install-tree -->
    ```text
    <user-level skills dir>/
    └── work-discipline/
        ├── SKILL.md
        ├── SKILL.en.md
        └── references/
-           ├── execution-layer.md
            ├── execution-layer.en.md
-           ├── delegation-layer.md
            ├── delegation-layer.en.md
-           ├── memory-maintenance.md
            ├── memory-maintenance.en.md
-           ├── project-notes.md
            └── project-notes.en.md
    ```
+   <!-- END GENERATED:install-tree -->
 
    ⚠️ **Copying `SKILL.md` alone breaks it**: the main file states that online writes, bulk jobs, and delegation require reading the matching `references/` file first. Without those files the execution-layer and delegation-layer rules fail as a whole — and they fail **silently**, because the skill still loads and the rules are simply skipped. Always bring the whole directory.
 
@@ -54,11 +52,11 @@ Chinese and English versions, rule by rule.
    - **zip / tarball**: repo home → `Code` → `Download ZIP`; extract and copy the whole `skills/work-discipline/` dir into the user-level skills directory.
    - **Per-file raw download (bash)**:
 
+   <!-- BEGIN GENERATED:bash-download -->
      ```bash
      BASE="https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
      DEST="$HOME/.claude/skills/work-discipline"   # adjust for your client
-     for f in SKILL.md SKILL.en.md \
-       references/execution-layer.md references/execution-layer.en.md \
+     for f in SKILL.md SKILL.en.md references/execution-layer.md references/execution-layer.en.md \
        references/delegation-layer.md references/delegation-layer.en.md \
        references/memory-maintenance.md references/memory-maintenance.en.md \
        references/project-notes.md references/project-notes.en.md; do
@@ -72,17 +70,24 @@ Chinese and English versions, rule by rule.
      curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" \
        -o "$DEST/verify_skill.py" || echo "FAILED: verify_skill.py"
      ```
+   <!-- END GENERATED:bash-download -->
 
    - **Per-file raw download (PowerShell)**:
 
+   <!-- BEGIN GENERATED:ps-download -->
      ```powershell
      $base = "https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
      $dest = "$env:USERPROFILE\.workbuddy\skills\work-discipline"  # adjust for your client
      $files = @("SKILL.md","SKILL.en.md",
-       "references/execution-layer.md","references/execution-layer.en.md",
-       "references/delegation-layer.md","references/delegation-layer.en.md",
-       "references/memory-maintenance.md","references/memory-maintenance.en.md",
-       "references/project-notes.md","references/project-notes.en.md")
+       "references/execution-layer.md",
+       "references/execution-layer.en.md",
+       "references/delegation-layer.md",
+       "references/delegation-layer.en.md",
+       "references/memory-maintenance.md",
+       "references/memory-maintenance.en.md",
+       "references/project-notes.md",
+       "references/project-notes.en.md"
+     )
      foreach ($f in $files) {
        $out = Join-Path $dest ($f -replace '/', '\')
        New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
@@ -93,6 +98,7 @@ Chinese and English versions, rule by rule.
      # optional semantic self-check script
      Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" -OutFile (Join-Path $dest "verify_skill.py")
      ```
+   <!-- END GENERATED:ps-download -->
 
    Verify with `manifest.json` SHA256 sums (below) — do not just check that files exist.
 
@@ -107,6 +113,7 @@ Chinese and English versions, rule by rule.
 
 ## Repository layout
 
+<!-- BEGIN GENERATED:repo-tree -->
 ```text
 .
 ├── .github/workflows/verify.yml     # CI: dual job (with/without PyYAML) × dual OS
@@ -114,29 +121,26 @@ Chinese and English versions, rule by rule.
 ├── README.md                        # this document (Chinese)
 ├── README.en.md                     # this document (English)
 ├── docs/
-│   ├── clients.md                   # client compatibility matrix (Chinese, evidence levels)
-│   └── clients.en.md                # client compatibility matrix (English)
+│   ├── clients.md                   # client matrix (Chinese, evidence levels)
+│   └── clients.en.md                # client matrix (English)
 ├── dist/
-│   ├── work-discipline.flat.md      # flat build (no references; for single-file clients)
+│   ├── work-discipline.flat.md      # flat build (for single-file clients)
 │   └── work-discipline.flat.en.md
-├── manifest.json                    # SHA256 + byte count for every file (no Python needed)
+├── manifest.json                    # SHA256 + byte count for every file
 ├── scripts/
-│   ├── verify_skill.py              # semantic self-check: frontmatter + alignment + routes
+│   ├── verify_skill.py              # semantic self-check
 │   └── build_dist.py                # build / verify flat builds and manifest
 └── skills/
     └── work-discipline/
         ├── SKILL.md                 # main rule file · Chinese · sole entry point
         ├── SKILL.en.md              # main rule file · English
         └── references/
-            ├── execution-layer.md      # seven-step method + three iron rules
-            ├── execution-layer.en.md
-            ├── delegation-layer.md     # four moments of delegation
-            ├── delegation-layer.en.md
-            ├── memory-maintenance.md   # memory maintenance rules
-            ├── memory-maintenance.en.md
-            ├── project-notes.md        # private experience for one backend (void elsewhere)
-            └── project-notes.en.md
+            ├── execution-layer.en.md      # seven-step method + three iron rules
+            ├── delegation-layer.en.md     # four moments of delegation
+            ├── memory-maintenance.en.md   # memory maintenance rules
+            └── project-notes.en.md        # backend-specific notes (void elsewhere)
 ```
+<!-- END GENERATED:repo-tree -->
 
 ## Self-check
 
@@ -188,6 +192,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v8 docs SSOT generation**: the distribution file list (10 rule files) is now one constant (`RULE_FILES`) in `build_dist.py`; the README install tree, bash / PS download loops, and repo structure tree are all generated from it and wrapped in `<!-- BEGIN/END GENERATED:x -->` markers. `--check` verifies generated blocks byte-for-byte — coverage moves from "guess which facts to check" to "every generated block", closing all three v7 blind spots (manifest line, script line, second tree). CI's `verify-negative-docs` now corrupts each of the four blocks in both CN and EN and asserts each is caught. Token counts in `docs/clients.md` are labeled as estimates.
 - **v7 documentation consistency**: the brand check dropped its "dirname ends with work-discipline" filter — renaming an install dir emptied the checked set and the check always passed (a silent no-op); it now collects md files under the passed-in directory. Fixed README install-tree indentation (four files had fallen back to the root level — copying by the diagram installed them in the wrong place). Download loops now fetch `scripts/verify_skill.py` and `manifest.json`, and self-check instructions split into two paths (with Python + script run semantic checks; otherwise hash verification only). `build_dist.py --check` gained a static documentation gate: README install tree matches actual references, and download loops cover every rule file — no network, no executing README commands, so CI stays independent of external availability. CI added `verify-negative-docs` covering broken tree indentation, incomplete download list, and a brand check that must not go silent after a rename.
 - **v6 verification-loop fix**: fixed "installed copy passes self-check falsely" — section 6 previously used the repo's own manifest to hash the repo's own files, unrelated to the target directory passed in. Now the repo manifest is auto-used only when the target is inside the repo layout; checking any installed copy requires explicit `--manifest`, otherwise it is marked PARTIAL (exit 2) instead of claiming a false green. Hash comparison is based on the target directory, covering only its 10 rule files. CI gained a negative-test job (deliberately pollutes an installed copy and asserts failure). README install tree gained both project-notes files, recovery loops fetch `manifest.json`, terminology unified to "client resident instruction", an unknown-client decision flow was added, and the flat build dropped a duplicate separator.
 - **v5 distribution-layer rework**: added `docs/clients.md` compatibility matrix (every row tagged verified-locally / verified-externally / not-verified); added `dist/` flat builds + `manifest.json` (SHA256 verifiable without Python), generated and checked by `scripts/build_dist.py --check`; CI split into dual jobs (with/without PyYAML) × dual OS, covering the previously untested PARTIAL branch; installation docs gained zip and per-file raw recovery recipes (bash + PowerShell); the hard reference to a "resident hook file" became "client resident instruction (also re-read if the client persists it as a file)", and the flat build header overrides directory-only clauses so single-file clients do not trip the "stop if references cannot be read" rule.

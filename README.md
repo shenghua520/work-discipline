@@ -26,6 +26,7 @@
 
 1. **整目录拷贝**：把 `skills/work-discipline/` 整个目录放进用户级 skills 目录（常见形态：`~/.workbuddy/skills/`、`~/.claude/skills/`），最终形如：
 
+   <!-- BEGIN GENERATED:install-tree -->
    ```text
    <用户级 skills 目录>/
    └── work-discipline/
@@ -33,14 +34,11 @@
        ├── SKILL.en.md
        └── references/
            ├── execution-layer.md
-           ├── execution-layer.en.md
            ├── delegation-layer.md
-           ├── delegation-layer.en.md
            ├── memory-maintenance.md
-           ├── memory-maintenance.en.md
-           ├── project-notes.md
-           └── project-notes.en.md
+           └── project-notes.md
    ```
+   <!-- END GENERATED:install-tree -->
 
    ⚠️ **只拷 `SKILL.md` 会坏掉**：主文件里写着「涉及线上写操作、批量作业、派活时必须先读 `references/` 对应文件」，缺了这些文件，执行层与委托层的细则会整体失效，而且**是静默失效**——skill 照样能加载，只是规则被跳过。所以复制时务必带上整个目录。
 
@@ -54,11 +52,11 @@
    - **zip / tarball**：仓库首页 `Code` → `Download ZIP`，解压后把 `skills/work-discipline/` 整目录拷到用户级 skills 目录。
    - **逐文件 raw 下载（bash）**：
 
+     <!-- BEGIN GENERATED:bash-download -->
      ```bash
      BASE="https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
      DEST="$HOME/.workbuddy/skills/work-discipline"   # 按客户端调整
-     for f in SKILL.md SKILL.en.md \
-       references/execution-layer.md references/execution-layer.en.md \
+     for f in SKILL.md SKILL.en.md references/execution-layer.md references/execution-layer.en.md \
        references/delegation-layer.md references/delegation-layer.en.md \
        references/memory-maintenance.md references/memory-maintenance.en.md \
        references/project-notes.md references/project-notes.en.md; do
@@ -72,17 +70,24 @@
      curl -fsSL "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" \
        -o "$DEST/verify_skill.py" || echo "FAILED: verify_skill.py"
      ```
+     <!-- END GENERATED:bash-download -->
 
    - **逐文件 raw 下载（PowerShell）**：
 
+     <!-- BEGIN GENERATED:ps-download -->
      ```powershell
      $base = "https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
      $dest = "$env:USERPROFILE\.workbuddy\skills\work-discipline"  # 按客户端调整
      $files = @("SKILL.md","SKILL.en.md",
-       "references/execution-layer.md","references/execution-layer.en.md",
-       "references/delegation-layer.md","references/delegation-layer.en.md",
-       "references/memory-maintenance.md","references/memory-maintenance.en.md",
-       "references/project-notes.md","references/project-notes.en.md")
+       "references/execution-layer.md",
+       "references/execution-layer.en.md",
+       "references/delegation-layer.md",
+       "references/delegation-layer.en.md",
+       "references/memory-maintenance.md",
+       "references/memory-maintenance.en.md",
+       "references/project-notes.md",
+       "references/project-notes.en.md"
+     )
      foreach ($f in $files) {
        $out = Join-Path $dest ($f -replace '/', '\')
        New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
@@ -93,6 +98,7 @@
      # 语义自检脚本（可选）
      Invoke-WebRequest -Uri "https://raw.githubusercontent.com/shenghua520/work-discipline/main/scripts/verify_skill.py" -OutFile (Join-Path $dest "verify_skill.py")
      ```
+     <!-- END GENERATED:ps-download -->
 
    拉完用 `manifest.json` 核对 SHA256（见下），别只看文件在不在。
 
@@ -107,6 +113,7 @@
 
 ## 仓库结构
 
+<!-- BEGIN GENERATED:repo-tree -->
 ```text
 .
 ├── .github/workflows/verify.yml     # CI：双 job（有/无 PyYAML）× 双平台
@@ -129,14 +136,11 @@
         ├── SKILL.en.md              # 规则主文件 · 英文
         └── references/
             ├── execution-layer.md      # 执行层七步法 + 三条铁律
-            ├── execution-layer.en.md
             ├── delegation-layer.md     # 委托层四时机
-            ├── delegation-layer.en.md
             ├── memory-maintenance.md   # 记忆维护规则
-            ├── memory-maintenance.en.md
-            ├── project-notes.md        # 特定后端的私有经验（换项目即作废）
-            └── project-notes.en.md
+            └── project-notes.md        # 特定后端的私有经验（换项目即作废）
 ```
+<!-- END GENERATED:repo-tree -->
 
 ## 自检
 
@@ -188,6 +192,7 @@ python scripts/build_dist.py --check        # 扁平版与 manifest 是否与源
 
 ## 变更记录
 
+- **v8 文档 SSOT 生成**：把「分发文件清单」（10 个规则文件）收敛为 `build_dist.py` 里的 `RULE_FILES` 常量；README 的安装树、bash / PS 下载循环、仓库结构树全部改为脚本生成，用 `<!-- BEGIN/END GENERATED:x -->` 标记包裹，`--check` 只验生成块逐字同步——覆盖面从「猜哪些事实要验」变成「全部生成块」，v7 那三处盲区（manifest 行、脚本行、第二棵树）一起消失。CI 的 `verify-negative-docs` 改为对四个生成块 × 中英逐块注入垃圾，断言都能被抓到。`docs/clients.md` 的 token 估算标注为估算值、规则文件数标注由脚本核对。
 - **v7 说明书一致性**：品牌检查去掉「目录名以 work-discipline 结尾」的过滤（安装目录一改名被检集合变空集、检查恒过——静默失效），改为以传入目录为根收集 md；README 安装树缩进修复（4 个文件曾掉回根层，照图拷会装错目录）；下载循环补拉 `scripts/verify_skill.py` 与 `manifest.json`，并把「自检命令」明确分成两条路（有 Python + 脚本跑语义自检；否则只做哈希自证）；`build_dist.py --check` 增加文档静态门禁——校验 README 安装树与实际 references 一致、下载循环覆盖全部规则文件（不联网、不执行 README 命令，避免 CI 依赖外部网络）；CI 加 `verify-negative-docs` job 覆盖树缩进错、下载清单漏、改名后品牌检查空转三类反向测试。
 - **v6 校验闭环修复**：修复「装完后自检误报通过」——第 6 节原本用脚本所在仓库的清单校验仓库自己的文件，与传入的安装目录无关；现在目标在仓库布局内才自动用仓库清单，校验任意安装副本必须显式 `--manifest`，否则标记 PARTIAL（exit 2）拒绝伪绿；哈希比对基准从仓库路径改为被校验目录，只比对其中的 10 个规则文件。CI 加反向测试 job（故意污染一份安装副本断言失败）。README 安装树补齐 project-notes 两份、恢复循环补拉 `manifest.json`；术语统一为「客户端常驻指令」；未知客户端加三步判定流程；扁平版去掉重复分隔符。
 - **v5 发行层改造**：加 `docs/clients.md` 客户端适配表（每条标本机实测 / 外部实测 / 未实测）；加 `dist/` 扁平版 + `manifest.json`（SHA256 无 Python 也能验），配 `scripts/build_dist.py` 生成与 `--check` 同步校验；CI 拆双 job（有/无 PyYAML）× 双平台，专门覆盖之前测不到的 PARTIAL 分支；安装说明补 zip 与逐文件 raw（bash + PowerShell）两条非 git 恢复路；「常驻钩子文件」硬引用改成「客户端常驻指令（落成独立文件时一并重读）」，扁平版文件头声明覆盖目录版专属条款，避免单文件客户端误触发「读不到 references 就报错」。
