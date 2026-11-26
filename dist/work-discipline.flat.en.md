@@ -8,8 +8,6 @@
 
 ---
 
----
-
 # Long-term memory · read and execute
 
 Every rule = trigger → action → prohibition / acceptance, imperative mood. Self-check: if deleting this rule would not make you fail, delete it.
@@ -148,7 +146,7 @@ This file keeps only high-frequency hard rules. The three detailed chapters live
 
 - Separate environment facts from rules: **rules** belong in the body (the AI can act on them); **environment state** (one repository's 403, one machine's default config) belongs in the README or notes — an AI reading environment facts has no executable action.
 - **The resident instruction is a trigger, not a copy of the rules**: the client's resident instruction (custom instruction / customPrompt) states only *when to invoke which skill* — never copy the rule body into it. Two failures to avoid: ① after the rules change the resident instruction is not updated, leaving two conflicting versions of the same rule — and conflicting rules get picked at random; ② the resident instruction looks like the rules, so the agent assumes the rules are already loaded and skips invoking the skill. Correct shape: one trigger line plus "the rules live in the skill".
-- Keep the resident hook on its own: in the client's resident-instruction setting, keep only one trigger line (e.g. "call the xxx skill before every task"); the rule body is not repeated there — duplication is conflict risk.
+- Keep the client resident instruction on its own: in the client's instruction setting, keep only one trigger line (e.g. "call the xxx skill before every task"); the rule body is not repeated there — duplication is conflict risk. If the client persists that instruction as a separate file, re-read it together with the skill.
 - Read back and verify after every change: the frontmatter's first line and field line breaks, item counts, one-to-one correspondence between Chinese and English items, and matching hashes between remote and local.
 
 ---

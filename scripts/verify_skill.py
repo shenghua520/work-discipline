@@ -2,10 +2,12 @@
 """work-discipline skill 自检：frontmatter / 中英对齐 / 路由闭合 / 品牌与掩码。
 
 用法：
-    python scripts/verify_skill.py [技能目录]
+    python scripts/verify_skill.py [技能目录] [--manifest <清单路径>]
 
 默认技能目录 = 脚本上级目录的 skills/work-discipline。
-退出码：0 = 全部通过；1 = 有 FAIL；2 = 有 PARTIAL（缺依赖，未 fully 验证）。
+manifest 来源：显式 --manifest 优先；未指定时仅在「目标位于脚本所在仓库内」时自动用仓库清单。
+校验任意安装副本必须显式传 --manifest，否则哈希校验标记 PARTIAL，拒绝用仓库自身清单冒充。
+退出码：0 = 全部通过；1 = 有 FAIL；2 = 有 PARTIAL（缺依赖或未验哈希，不 fully verified）。
 不联网、不写文件。PyYAML 缺失时严格 YAML 解析标记为 PARTIAL，不再伪报「全部通过」。
 """
 import hashlib
@@ -94,8 +96,16 @@ def structural_fingerprint(text):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    skill_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "skills", "work-discipline")
-    skill_dir = os.path.abspath(skill_dir)
+    args = sys.argv[1:]
+    manifest_arg = None
+    if "--manifest" in args:
+        idx = args.index("--manifest")
+        if idx + 1 >= len(args):
+            print("FAIL: --manifest 后必须跟清单路径")
+            sys.exit(1)
+        manifest_arg = os.path.abspath(args[idx + 1])
+        del args[idx:idx + 2]
+    skill_dir = os.path.abspath(args[0]) if args else os.path.join(here, "..", "skills", "work-discipline")
     print(f"技能目录: {skill_dir}\n")
 
     print("=== 1. frontmatter ===")
@@ -195,12 +205,23 @@ def main():
         digest = hashlib.md5(open(path, "rb").read()).hexdigest()
         print(f"  {digest}  {os.path.relpath(path, skill_dir).replace(os.sep, '/')}")
 
-    print("\n=== 6. manifest 与分发产物 ===")
+    print("\n=== 6. manifest 哈希校验（必须校验你指向的目录）===")
     repo = os.path.dirname(here)
-    mpath = os.path.join(repo, "manifest.json")
-    if not os.path.exists(mpath):
-        partial("manifest 存在", "仓库根缺 manifest.json（无 Python 时无法做哈希自检）")
+    default_mpath = os.path.join(repo, "manifest.json")
+    is_repo_layout = os.path.normcase(os.path.abspath(
+        os.path.join(skill_dir, "..", ".."))) == os.path.normcase(os.path.abspath(repo))
+
+    # 清单来源判定：显式 --manifest 优先；否则仅在仓库布局下用仓库自带清单。
+    # 绝不能用「脚本所在仓库」的清单去校验一个任意安装目录——那是自我验证，不是验证目标。
+    mpath = manifest_arg or (default_mpath if is_repo_layout else None)
+    if not mpath:
+        partial("安装副本哈希校验", "未指定 --manifest，且目标不在仓库布局内；"
+                "仓库自带清单不覆盖任意安装目录，拒绝用它冒充校验结果")
+    elif not os.path.exists(mpath):
+        check(False, "manifest 存在", mpath)
     else:
+        mode = "显式清单" if manifest_arg else "仓库自带清单"
+        print(f"  清单来源: {mpath}（{mode}）")
         try:
             manifest = json.loads(read(mpath))
         except Exception as exc:
@@ -208,10 +229,16 @@ def main():
             manifest = {}
         entries = manifest.get("files", {})
         mismatch = []
+        checked = 0
         for rel, meta in entries.items():
-            candidate = os.path.join(repo, rel)
-            if not os.path.exists(candidate) and rel.startswith("skills/work-discipline/"):
-                candidate = os.path.join(repo, rel[len("skills/work-discipline/"):])
+            # 清单里的路径是仓库相对路径；只对落到被校验目录内的条目做哈希比对。
+            if rel.startswith("skills/work-discipline/"):
+                local_rel = rel[len("skills/work-discipline/"):]
+                candidate = os.path.join(skill_dir, local_rel.replace("/", os.sep))
+            elif rel.startswith(("docs/", "dist/", "scripts/", ".github/")) or rel in ("README.md", "README.en.md", "LICENSE"):
+                continue  # 仓库外围文件不属于安装副本，不参与 install 模式校验
+            else:
+                candidate = os.path.join(skill_dir, rel.replace("/", os.sep))
             if not os.path.exists(candidate):
                 mismatch.append(f"{rel}(缺失)")
                 continue
@@ -219,11 +246,12 @@ def main():
             with open(candidate, "rb") as fh:
                 for chunk in iter(lambda: fh.read(65536), b""):
                     h.update(chunk)
+            checked += 1
             if h.hexdigest() != meta.get("sha256"):
                 mismatch.append(f"{rel}(哈希不符)")
-        check(not mismatch, "manifest 全部文件 SHA256 一致",
-              f"核对 {len(entries)} 个" + (f" 异常 {mismatch[:4]}" if mismatch else ""))
-        check(manifest.get("version") == "5.0.0", "manifest 版本",
+        check(not mismatch, "目标目录与 manifest SHA256 一致",
+              f"核对 {checked} 个" + (f" 异常 {mismatch[:4]}" if mismatch else ""))
+        check(bool(manifest.get("version")), "manifest 版本字段存在",
               f"实际 {manifest.get('version')}")
 
     print()

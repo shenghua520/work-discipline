@@ -46,6 +46,16 @@ Get-FileHash -Algorithm SHA256 skills\work-discipline\SKILL.md
 
 `python scripts/verify_skill.py` 做语义层检查（frontmatter、中英对齐、路由闭合、品牌与掩码）；`python scripts/build_dist.py --check` 校验扁平版与 manifest 是否与源同步。两者都缺 Python 时，用 manifest 至少能证明"文件没被改过"。
 
+## 未知客户端怎么判断（表追不上时就走这三步）
+
+表是快照，客户端会一直变。新客户端不必等补表，现场问三个问题：
+
+1. **能不能按需读文件？** 能 → 目录版；只能读一个文件（AGENTS.md / rules 文件）→ `dist/` 扁平版。**这条最关键，选错就是把纪律变成报错源。**
+2. **用户级 skill 目录在哪？** 看该客户端有没有「用户级 skills / 全局 rules」目录；有就放进去，没有就退回项目级目录或扁平版。不确定时先查它的官方文档，别猜。
+3. **常驻指令写在哪？** 找该客户端的「自定义指令 / 偏好 / CLAUDE.md / AGENTS.md / GEMINI.md」这类入口，只写一行触发语，不复制规则。找不到就先手动在开工时说一句「调用 work-discipline」，别为了触发去改配置文件。
+
+三步都答完再装；答不出第 1 步就不要装目录版。
+
 ## 一条硬边界
 
 **「读不到 references 就停下报错」是目录版的条款。** 扁平版已经在文件头覆盖了它——扁平版本来就没有 `references/`，照那条字面执行会每次开工报一次错，比不装还糟。给不支持按需读的客户端装目录版，等于把纪律变成报错源；装机前先确认这一栏。

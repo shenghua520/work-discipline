@@ -46,6 +46,16 @@ Get-FileHash -Algorithm SHA256 skills\work-discipline\SKILL.md
 
 `python scripts/verify_skill.py` checks semantics (frontmatter, CN/EN alignment, routing closure, brand and masking); `python scripts/build_dist.py --check` verifies the flat build and manifest are in sync with sources. With no Python at all, the manifest still proves "files were not modified".
 
+## Unknown client? Answer three questions
+
+The table is a snapshot and clients keep multiplying. For a new client, do not wait for the table — ask on site:
+
+1. **Can it read files on demand?** Yes → directory build. Only one file (AGENTS.md / a rules file) → `dist/` flat build. **This one matters most; getting it wrong turns discipline into an error generator.**
+2. **Where is its user-level skill dir?** Look for a user-level "skills / global rules" directory. If there is one, install there; otherwise fall back to a project-level dir or the flat build. When unsure, check official docs — do not guess.
+3. **Where does the resident instruction go?** Find the client's "custom instructions / preferences / CLAUDE.md / AGENTS.md / GEMINI.md" entry and write one trigger line, never the rule body. If you cannot find one, just say "call the work-discipline skill" at kickoff manually — do not edit config files just to force a trigger.
+
+Answer all three before installing; if you cannot answer #1, do not install the directory build.
+
 ## One hard boundary
 
 **"Stop if references cannot be read" is a directory-build clause.** The flat build overrides it in the file header — a flat build has no `references/` by definition, and following that clause literally would produce one error per task, worse than no install at all. Installing the directory build into a client that cannot read files on demand turns discipline into an error generator; check that column before installing.

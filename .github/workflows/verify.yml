@@ -49,3 +49,49 @@ jobs:
           grep -q "PARTIAL" partial-out.txt || { echo "FAIL: no PARTIAL marker"; exit 1; }
           grep -q "未 Fully 验证" partial-out.txt || { echo "FAIL: false-green wording"; exit 1; }
           echo "PASS: no-dependency branch exits 2 and refuses to claim full verification"
+
+  # 反向测试：正例全过不能证明抓得住错误，这里故意制造两类损坏，断言必须失败
+  verify-negative:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+      - name: Polluted install copy must be rejected
+        shell: bash
+        run: |
+          set -e
+          rm -rf /tmp/wd-install-probe && mkdir -p /tmp/wd-install-probe
+          cp -r skills/work-discipline/. /tmp/wd-install-probe/
+          # 1) 内容漂移：只改一个字节，文件一个不少 —— 必须被 manifest 哈希抓到
+          printf '\n<!-- polluted -->\n' >> /tmp/wd-install-probe/SKILL.md
+          set +e
+          python scripts/verify_skill.py /tmp/wd-install-probe --manifest manifest.json > /tmp/neg-drift.txt 2>&1
+          drift=$?
+          set -e
+          cat /tmp/neg-drift.txt
+          if [ "$drift" -eq 0 ]; then echo "FAIL: content drift slipped through"; exit 1; fi
+          grep -q "哈希不符" /tmp/neg-drift.txt || { echo "FAIL: drift not attributed to hash"; exit 1; }
+          # 2) 缺文件：路由检查必须 FAIL
+          rm /tmp/wd-install-probe/references/project-notes.md
+          set +e
+          python scripts/verify_skill.py /tmp/wd-install-probe --manifest manifest.json > /tmp/neg-missing.txt 2>&1
+          missing=$?
+          set -e
+          cat /tmp/neg-missing.txt
+          if [ "$missing" -eq 0 ]; then echo "FAIL: missing file slipped through"; exit 1; fi
+          grep -q "缺失" /tmp/neg-missing.txt || { echo "FAIL: missing file not attributed"; exit 1; }
+          # 3) 干净副本不带清单：必须 PARTIAL(exit 2)，不许拿仓库清单冒充。
+          #    用独立副本，避免上面制造的内容漂移/缺文件让 FAIL 抢先，掩盖 PARTIAL 语义。
+          rm -rf /tmp/wd-install-clean && mkdir -p /tmp/wd-install-clean
+          cp -r skills/work-discipline/. /tmp/wd-install-clean/
+          set +e
+          python -S scripts/verify_skill.py /tmp/wd-install-clean > /tmp/neg-nomanifest.txt 2>&1
+          nomf=$?
+          set -e
+          if [ "$nomf" -ne 2 ]; then echo "FAIL: expected exit 2 (PARTIAL) on no-manifest install, got $nomf"; exit 1; fi
+          grep -q "安装副本哈希校验" /tmp/neg-nomanifest.txt || { echo "FAIL: no-manifest not reported as PARTIAL"; exit 1; }
+          echo "PASS: negative tests caught content drift, missing file, and false-green install check"

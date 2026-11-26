@@ -1,44 +1,44 @@
 {
   "files": {
     ".github/workflows/verify.yml": {
-      "sha256": "a225ab6cc59e7e0baaea0b994047433ebb0cc493b7fe9d65e1e2069878f8d414",
-      "size": 1698
+      "sha256": "f4a731e71772ee2b828318e989bb5e7d42b94e4a04916426a4a7a8b7f03f40ca",
+      "size": 4278
     },
     "LICENSE": {
       "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "7b9de2e533e6676fcc0de6f11a39d975c7178ccc18c7281f417d91d5acd0b465",
-      "size": 15632
+      "sha256": "a8dfabf46b38ed5f47c59759723fb940f5fdc5dc7023a2ce5be15a904e417011",
+      "size": 17452
     },
     "README.md": {
-      "sha256": "24602de44d2e6c35862c765b1fcabe2f59a7f573ff41ebaf0e0db37bee9fe72f",
-      "size": 13989
+      "sha256": "1796aeca26684c6077063073e22634840fa0231822fdf72722c22f139881c0ca",
+      "size": 15650
     },
     "dist/work-discipline.flat.en.md": {
-      "sha256": "ac402034e839f62d748720a83dd29ad087e24fd730de1c6ec323055291027a05",
-      "size": 20657
+      "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
+      "size": 20753
     },
     "dist/work-discipline.flat.md": {
-      "sha256": "9cce4b25b329fdb4e7063f54c802d5c40f3c7f8d2b0100b067c84cd268034651",
-      "size": 16607
+      "sha256": "2cd27a1ca05622dbde816f1749dec978864393a9639d86e6327280a235086ed2",
+      "size": 16662
     },
     "docs/clients.en.md": {
-      "sha256": "3e3e1468922cb898d8fef11b8af576eee8351cdecd14bc3194c69d36d13e30e8",
-      "size": 4981
+      "sha256": "032b4add1127c70b94d3ec49da68edbdbf5d12df8ed593ee38bad90cb3ada470",
+      "size": 6027
     },
     "docs/clients.md": {
-      "sha256": "ac59e37c1e395b44dd00a2461090c0954009d4f052d5ec3402171d89f0c86a2f",
-      "size": 4670
+      "sha256": "d9723fe8ebf3396293ae313ad0c5b2b957bdbc0f1ded74d801f245ff87da9831",
+      "size": 5598
     },
     "scripts/build_dist.py": {
-      "sha256": "ca587e683a5d91d1a53948f45de7be38807b02b0d944c68d6f38cbe69f0f43f2",
-      "size": 8521
+      "sha256": "8d217c275626016b6eb3c5ba2f8fbd1d991efa23bc78d0821e128fd9e36d5063",
+      "size": 8511
     },
     "scripts/verify_skill.py": {
-      "sha256": "2de7e01e642ca6540a91f37975444e8d96f7178884d8591bbe0f5376b818fa63",
-      "size": 10138
+      "sha256": "ac911345d39605d2725d0697c793c140f07afe89d4702104620059b31fb02fd9",
+      "size": 11970
     },
     "skills/work-discipline/SKILL.en.md": {
       "sha256": "69b9970c306b8e1d03d3c2297be6f838d8e0f35e005922a2f2b0b084473c387d",
@@ -65,12 +65,12 @@
       "size": 3342
     },
     "skills/work-discipline/references/memory-maintenance.en.md": {
-      "sha256": "7519276d880b9a50e57a7dc6968697ce10ffd829711340ac9da78f28bc1d364f",
-      "size": 4061
+      "sha256": "de2b57786e2a3d6f807e34bd823ca9b26c6cecadf1c43ded39cf2315298df8d8",
+      "size": 4162
     },
     "skills/work-discipline/references/memory-maintenance.md": {
-      "sha256": "5b90fb181fd9f363fc3130df3b88d6b895a838604da0baae3ef154c662bcb5fc",
-      "size": 3225
+      "sha256": "9d9ae6c6fc7f58ffe2b1acd1a0f09804d00e1e47462b14f43c40099f44440219",
+      "size": 3285
     },
     "skills/work-discipline/references/project-notes.en.md": {
       "sha256": "720803b166b610bd6a7c2ebf6de52acd7eaa710388788916cd11ee0020ee1205",

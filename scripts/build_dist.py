@@ -48,8 +48,6 @@ HEADER_CN = """# work-discipline · 扁平版（分发用）
 >
 > 目录版安装：把 `skills/work-discipline/` 整目录拷到客户端的用户级 skills 目录。本扁平版给**不支持按需读文件**的客户端使用（如只能读单个 AGENTS.md / rules 文件的场景）。
 
----
-
 """
 
 HEADER_EN = """# work-discipline · Flat distribution build
@@ -59,8 +57,6 @@ HEADER_EN = """# work-discipline · Flat distribution build
 > **Flat-mode precedence (overrides the body below)**: this single file already contains every rule; there is **no `references/` directory**. Every "read the routed file first", "stop if references cannot be read", and "copy the whole directory" clause below applies **only to the directory build** and does not apply here — read this file top to bottom and never look for external files. If the two builds disagree, the directory sources win.
 >
 > Directory install: copy `skills/work-discipline/` as a whole into the client's user-level skills directory. Use this flat build only for clients that cannot read additional files on demand (e.g. a single AGENTS.md / rules file).
-
----
 
 """
 
