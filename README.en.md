@@ -52,8 +52,11 @@ Chinese and English versions, rule by rule.
 
 ```text
 .
+├── LICENSE                          # MIT
 ├── README.md                        # this document (Chinese)
 ├── README.en.md                     # this document (English)
+├── scripts/
+│   └── verify_skill.py              # self-check: frontmatter + CN/EN alignment + routes
 └── skills/
     └── work-discipline/
         ├── SKILL.md                 # main rule file · Chinese · sole entry point
@@ -64,8 +67,18 @@ Chinese and English versions, rule by rule.
             ├── delegation-layer.md     # four moments of delegation
             ├── delegation-layer.en.md
             ├── memory-maintenance.md   # memory maintenance rules
-            └── memory-maintenance.en.md
+            ├── memory-maintenance.en.md
+            ├── project-notes.md        # private experience for one backend (void elsewhere)
+            └── project-notes.en.md
 ```
+
+## Self-check
+
+```bash
+python scripts/verify_skill.py
+```
+
+Checks strict YAML parsing of frontmatter (only when PyYAML is installed), description length, CN/EN item alignment, existence of routed files, absence of brand names, and that the masking rule no longer exposes the first 4 characters. Prints md5 of every file for remote comparison. No network, no writes, exit code 0 = all passed.
 
 ## Design trade-off: why references
 
@@ -101,5 +114,6 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v3 external review fixes**: both descriptions converted to `>-` block scalars (fixes strict-YAML failure in the English frontmatter); masking tightened from first-4+last-4 to last-4 only; API replay clause gained three preconditions and an explicit ban on bypassing managed-network policy; backend-specific details (`empty-body POST` / `STATIC·VOLATILE` / `result:true+taskId`) moved into `references/project-notes.md`, leaving only portable rules in the execution layer; MIT LICENSE and `scripts/verify_skill.py` added.
 - **v2 structural rework**: the main file keeps only high-frequency hard rules (≈55 lines); the execution layer, delegation layer, and memory maintenance move into `references/`, and the routing index becomes real; two new rules added — "never echo credentials" and "re-read after compaction or instance switch"; duplicate items merged (task list vs work items; sweeping skills vs asking before adding capabilities) to remove self-contradiction; environment facts moved out of the rule body into this document.
 - **v1**: added README → renamed from workbuddy-memory to work-discipline → first created and uploaded SKILL.md.

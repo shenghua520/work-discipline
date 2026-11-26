@@ -52,8 +52,11 @@
 
 ```text
 .
+├── LICENSE                          # MIT
 ├── README.md                        # 本说明（中文）
 ├── README.en.md                     # 本说明（英文）
+├── scripts/
+│   └── verify_skill.py              # 自检：frontmatter + 中英对齐 + 路由
 └── skills/
     └── work-discipline/
         ├── SKILL.md                 # 规则主文件 · 中文 · 唯一入口
@@ -64,8 +67,18 @@
             ├── delegation-layer.md     # 委托层四时机
             ├── delegation-layer.en.md
             ├── memory-maintenance.md   # 记忆维护规则
-            └── memory-maintenance.en.md
+            ├── memory-maintenance.en.md
+            ├── project-notes.md        # 特定后端的私有经验（换项目即作废）
+            └── project-notes.en.md
 ```
+
+## 自检
+
+```bash
+python scripts/verify_skill.py
+```
+
+检查 frontmatter 严格 YAML 解析（装了 PyYAML 才跑）、description 长度、中英条目对齐、路由指向的文件存在、无品牌字样、掩码规则未暴露前 4 位，并打印全部文件的 md5 供远端比对。不联网、不写文件、退出码 0 = 全通过。
 
 ## 设计取舍：为什么拆成 references
 
@@ -101,5 +114,6 @@
 
 ## 变更记录
 
+- **v3 外部评审修订**：中英 description 改 `>-` 块标量（修复英文版严格 YAML 解析失败）；掩码从「前4+后4」收紧为仅后 4 位；API 重放条款加三条限定并禁止绕过受管网络策略；执行层的特定后端细节（`空 body POST` / `STATIC·VOLATILE` / `result:true+taskId`）移入 `references/project-notes.md`，规则层只留可迁移骨架；补 MIT LICENSE 与 `scripts/verify_skill.py` 自检脚本。
 - **v2 结构重构**：主文件只留高频硬规则（≈55 行），执行层 / 委托层 / 记忆维护三章拆入 `references/`，路由索引改为真索引；新增「凭据不回显」「压缩或换实例后重读」两条规则；合并重复条目（任务清单与工作条目、扫技能与缺能力先问），消除自相矛盾；环境事实从规则正文移入本文件。
 - **v1**：补 README → 改名 workbuddy-memory → work-discipline → 首次创建并上传 SKILL.md。
