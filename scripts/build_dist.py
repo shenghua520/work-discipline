@@ -34,6 +34,8 @@ RULE_FILES = [
 EXTRA_FILES = ["manifest.json", "scripts/verify_skill.py"]
 REFS_CN = ["execution-layer.md", "delegation-layer.md", "memory-maintenance.md", "project-notes.md"]
 REFS_EN = [f.replace(".md", ".en.md") for f in REFS_CN]
+# 版本单一来源：manifest.version 由此写入；--check 比对它，不靠人工记。
+VERSION = "9.0.0"
 
 HEADER_CN = """# work-discipline · 扁平版（分发用）
 
@@ -103,11 +105,16 @@ def build_flat(header, main_file, refs):
 
 
 # ===== README 生成块：全部由 RULE_FILES / EXTRA_FILES 派生 =====
+def all_refs():
+    """树描述的是目录本身，必须列全 8 个 refs（不是某种语言的 4 个视图）。"""
+    return [f[len("references/"):] for f in RULE_FILES if f.startswith("references/")]
+
+
 def gen_install_tree(lang):
     root_label = "<用户级 skills 目录>/" if lang == "cn" else "<user-level skills dir>/"
     lines = ["```text", root_label, "└── work-discipline/",
              "    ├── SKILL.md", "    ├── SKILL.en.md", "    └── references/"]
-    refs = REFS_CN if lang == "cn" else REFS_EN
+    refs = all_refs()
     for i, r in enumerate(refs):
         lines.append("        " + ("└── " if i == len(refs) - 1 else "├── ") + r)
     lines.append("```")
@@ -228,7 +235,7 @@ def gen_repo_tree(lang):
     lines.append("        ├── SKILL.md" + ("                 # 规则主文件 · 中文 · 唯一入口" if lang == "cn" else "                 # main rule file · Chinese · sole entry point"))
     lines.append("        ├── SKILL.en.md" + ("              # 规则主文件 · 英文" if lang == "cn" else "              # main rule file · English"))
     lines.append("        └── references/")
-    refs = REFS_CN if lang == "cn" else REFS_EN
+    refs = all_refs()
     for i, r in enumerate(refs):
         conn = "└── " if i == len(refs) - 1 else "├── "
         base = r.replace(".en.md", ".md")
@@ -274,21 +281,31 @@ def doc_blocks_status():
 
 
 def regenerate_readme_blocks():
-    """把生成块内容回填进 README（只改标记之间的内容，标记外的手工段落不动）。"""
+    """回填生成块；缺失的块按标记自动补插（在仓库结构节之后），绝不静默跳过。"""
+    inserted = []
     for filename, lang in README_FILES:
         path = os.path.join(ROOT, filename)
         if not os.path.exists(path):
             continue
         text = read(path)
-        for key, want in render_blocks(lang).items():
+        blocks = render_blocks(lang)
+        for key, want in blocks.items():
             pattern = re.compile(
                 r"(^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->[ \t]*\n)(.*?)(\n[ \t]*<!-- END GENERATED:" + re.escape(key) + r" -->[ \t]*$)",
                 re.S | re.M)
             new_text, n = pattern.subn(lambda m: m.group(1) + want + m.group(3), text)
             if n:
                 text = new_text
+                continue
+            # 缺块：自动补插到 README 末尾（带空行），并记录下来如实报告
+            block = (f"<!-- BEGIN GENERATED:{key} -->\n{want}\n"
+                     f"<!-- END GENERATED:{key} -->\n")
+            text = text.rstrip("\n") + "\n\n" + block
+            inserted.append(f"{filename}:{key}")
         write(path, text)
-        print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块")
+        print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块"
+              + (f"（补插 {[x for x in inserted if x.startswith(filename)]}）" if inserted else ""))
+    return inserted
 
 
 def tracked_files():
@@ -330,7 +347,7 @@ def expected_manifest(cn_flat, en_flat):
         "size": len(en_flat.encode("utf-8")),
     }
     return {
-        "version": "6.0.0",
+        "version": VERSION,
         "schema": "sha256+size; verify with sha256sum / certutil / Get-FileHash, no Python needed",
         "note": "manifest.json itself is intentionally excluded to avoid a self-reference cycle.",
         "files": files,
@@ -367,6 +384,8 @@ def main():
         extra = set(actual.get("files", {})) - set(expected["files"])
         if extra:
             problems.append(f"manifest 含多余条目: {sorted(extra)}")
+        if actual.get("version") != VERSION:
+            problems.append(f"manifest 版本不符: 实际 {actual.get('version')} 期望 {VERSION}")
     else:
         problems.append("缺失 manifest.json")
 
@@ -384,8 +403,15 @@ def main():
         for p in problems:
             print("  ", p)
 
-    # 顺序：先回填 README（会改 README 哈希），再算 manifest
+    # 顺序：先回填 README（会改 README 哈希），再自复查所有块真正落位，最后算 manifest。
+    # 生成器绝不能对"块没补齐"报 PASS —— 那是写路径上的伪绿。
     regenerate_readme_blocks()
+    residual = doc_blocks_status()
+    if residual:
+        for p in residual:
+            print(f"  FAIL {p}")
+        print("FAIL: 回填后仍有生成块未落位，拒绝报生成成功")
+        sys.exit(1)
     expected = expected_manifest(cn_flat, en_flat)
 
     os.makedirs(DIST, exist_ok=True)

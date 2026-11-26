@@ -1,20 +1,20 @@
 {
   "files": {
     ".github/workflows/verify.yml": {
-      "sha256": "35080b2a3c9b6e16729ed4a31ed9ccce2f72a5e157cc0ab60a2b3c604e104ea9",
-      "size": 6676
+      "sha256": "b64f97f7796a35ccc4540e84b4b98da1ff225c512f73d09990b3ac776d65bc89",
+      "size": 8555
     },
     "LICENSE": {
       "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "1e5ec08f18a67911110117a605fde32154e52e100b3b98a6c16c2763c1cc7436",
-      "size": 19656
+      "sha256": "68af41dc10fecab0d341dd29382c8cff7a69ea5f4b60326196f5f166a0a3371f",
+      "size": 20957
     },
     "README.md": {
-      "sha256": "b1404a4aed60bf704c522758b37cdbf49626478eae8e6b62c879dd889216dfb7",
-      "size": 17851
+      "sha256": "03123d64fdd1c6b97e19fd5039cc7951421bef0932d66df9134206c430f374fb",
+      "size": 19014
     },
     "dist/work-discipline.flat.en.md": {
       "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
@@ -33,8 +33,8 @@
       "size": 6128
     },
     "scripts/build_dist.py": {
-      "sha256": "062f66a512078440ddcd6efe9842bc188c322203cbd8c667a223d70148c80896",
-      "size": 18935
+      "sha256": "9d7375a3b89eb90acb70821bffa1cc3ab08f6c5dd2187023ec51e7abd1689888",
+      "size": 20212
     },
     "scripts/verify_skill.py": {
       "sha256": "34ce0b34645c7ceb15b239e1edd800a9e09b40ad8251d3c1146c714aad2bcc45",
@@ -83,5 +83,5 @@
   },
   "note": "manifest.json itself is intentionally excluded to avoid a self-reference cycle.",
   "schema": "sha256+size; verify with sha256sum / certutil / Get-FileHash, no Python needed",
-  "version": "6.0.0"
+  "version": "9.0.0"
 }

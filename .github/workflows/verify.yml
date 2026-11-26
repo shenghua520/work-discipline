@@ -143,4 +143,38 @@ jobs:
           set -e
           [ "$brand" -ne 0 ] || { echo "FAIL: brand check silently no-op after rename"; exit 1; }
           grep -q "品牌字样" /tmp/neg-brand.txt || { echo "FAIL: brand check did not fire"; exit 1; }
-          echo "PASS: all 4 generated blocks × CN/EN caught, plus rename-proof brand check"
+          # 4) manifest.version 必须是唯一来源：篡改后 --check 必须失败
+          cp manifest.json /tmp/good-manifest.json
+          python - <<'PY'
+          import json, io
+          p = "manifest.json"
+          d = json.load(io.open(p, encoding="utf-8"))
+          d["version"] = "9.9.9"
+          io.open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+          PY
+          set +e
+          python scripts/build_dist.py --check > /tmp/neg-ver.txt 2>&1
+          ver=$?
+          set -e
+          [ "$ver" -ne 0 ] || { echo "FAIL: tampered version slipped through"; exit 1; }
+          grep -q "版本不符" /tmp/neg-ver.txt || { echo "FAIL: version error not attributed"; exit 1; }
+          cp /tmp/good-manifest.json manifest.json
+          echo "  caught tampered manifest.version"
+          # 5) generate 缺块不得伪绿：删整块后生成，必须补插恢复且回报补插
+          cp /tmp/good-cn.md README.md
+          python - <<'PY'
+          import io
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          i = t.find("   <!-- BEGIN GENERATED:install-tree -->")
+          j = t.find("   <!-- END GENERATED:install-tree -->")
+          assert i > 0 and j > i
+          io.open(p, "w", encoding="utf-8").write(t[:i] + t[j + len("   <!-- END GENERATED:install-tree -->"):])
+          PY
+          python scripts/build_dist.py > /tmp/regen.txt 2>&1
+          blocks=$(grep -c "BEGIN GENERATED" README.md)
+          [ "$blocks" -eq 4 ] || { echo "FAIL: generate did not restore missing block ($blocks/4)"; exit 1; }
+          grep -q "补插" /tmp/regen.txt || { echo "FAIL: generate did not report insertion"; exit 1; }
+          cp /tmp/good-cn.md README.md
+          echo "  caught missing-block generate would-be false green (self-healed + reported)"
+          echo "PASS: generated blocks × CN/EN, brand, version, generate self-heal all verified"

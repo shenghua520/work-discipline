@@ -33,9 +33,13 @@ Chinese and English versions, rule by rule.
        ├── SKILL.md
        ├── SKILL.en.md
        └── references/
+           ├── execution-layer.md
            ├── execution-layer.en.md
+           ├── delegation-layer.md
            ├── delegation-layer.en.md
+           ├── memory-maintenance.md
            ├── memory-maintenance.en.md
+           ├── project-notes.md
            └── project-notes.en.md
    ```
    <!-- END GENERATED:install-tree -->
@@ -135,9 +139,13 @@ Chinese and English versions, rule by rule.
         ├── SKILL.md                 # main rule file · Chinese · sole entry point
         ├── SKILL.en.md              # main rule file · English
         └── references/
+            ├── execution-layer.md      # seven-step method + three iron rules
             ├── execution-layer.en.md      # seven-step method + three iron rules
+            ├── delegation-layer.md     # four moments of delegation
             ├── delegation-layer.en.md     # four moments of delegation
+            ├── memory-maintenance.md   # memory maintenance rules
             ├── memory-maintenance.en.md   # memory maintenance rules
+            ├── project-notes.md        # backend-specific notes (void elsewhere)
             └── project-notes.en.md        # backend-specific notes (void elsewhere)
 ```
 <!-- END GENERATED:repo-tree -->
@@ -192,6 +200,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v9 generation closed loop**: fixed three v8 residuals — (1) `generate` used to print "backfilled 4 blocks" when one was missing (only 3 existed) and still reported PASS, a false green on the write path; it now auto-inserts missing blocks by marker, reports the insertion, and re-checks all blocks afterwards, failing if any remain missing. (2) `manifest.version` is now a single source — the `VERSION` constant in `build_dist.py` — and `--check` compares its value (previously only presence was checked, so tampering to 9.9.9 still passed). (3) install tree and repo tree now list all 8 refs instead of a language-specific 4 (a tree describes a directory, not a language view) — v7 fixed this, v8's generator regressed it to half. CI's negative job gained version-tamper and generate-self-heal assertions.
 - **v8 docs SSOT generation**: the distribution file list (10 rule files) is now one constant (`RULE_FILES`) in `build_dist.py`; the README install tree, bash / PS download loops, and repo structure tree are all generated from it and wrapped in `<!-- BEGIN/END GENERATED:x -->` markers. `--check` verifies generated blocks byte-for-byte — coverage moves from "guess which facts to check" to "every generated block", closing all three v7 blind spots (manifest line, script line, second tree). CI's `verify-negative-docs` now corrupts each of the four blocks in both CN and EN and asserts each is caught. Token counts in `docs/clients.md` are labeled as estimates.
 - **v7 documentation consistency**: the brand check dropped its "dirname ends with work-discipline" filter — renaming an install dir emptied the checked set and the check always passed (a silent no-op); it now collects md files under the passed-in directory. Fixed README install-tree indentation (four files had fallen back to the root level — copying by the diagram installed them in the wrong place). Download loops now fetch `scripts/verify_skill.py` and `manifest.json`, and self-check instructions split into two paths (with Python + script run semantic checks; otherwise hash verification only). `build_dist.py --check` gained a static documentation gate: README install tree matches actual references, and download loops cover every rule file — no network, no executing README commands, so CI stays independent of external availability. CI added `verify-negative-docs` covering broken tree indentation, incomplete download list, and a brand check that must not go silent after a rename.
 - **v6 verification-loop fix**: fixed "installed copy passes self-check falsely" — section 6 previously used the repo's own manifest to hash the repo's own files, unrelated to the target directory passed in. Now the repo manifest is auto-used only when the target is inside the repo layout; checking any installed copy requires explicit `--manifest`, otherwise it is marked PARTIAL (exit 2) instead of claiming a false green. Hash comparison is based on the target directory, covering only its 10 rule files. CI gained a negative-test job (deliberately pollutes an installed copy and asserts failure). README install tree gained both project-notes files, recovery loops fetch `manifest.json`, terminology unified to "client resident instruction", an unknown-client decision flow was added, and the flat build dropped a duplicate separator.
