@@ -344,15 +344,29 @@ def regenerate_readme_blocks():
                 text = text[:s] + text[e:]
             sm = re.search(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
             assert sm, f"SLOT 被误删：{filename}/{key}"
-            after_slot = sm.end()
             # want 每行已带生成器内置的缩进（如 install-tree 3 空格、bash-download 5 空格），
             # 不能再叠加 slot_indent——那会让重建块与 want 逐字不等，--check 永久失败。
             # 标记行的缩进取 want 首行，保证块自身对齐；SLOT 只是位置锚点，不参与渲染。
             want_indent = re.match(r"[ \t]*", want.split("\n")[0]).group(0)
-            block = (f"\n{want_indent}<!-- BEGIN GENERATED:{key} -->\n"
+            block = (f"{want_indent}<!-- BEGIN GENERATED:{key} -->\n"
                      + want
-                     + f"\n{want_indent}<!-- END GENERATED:{key} -->\n")
-            text = text[:after_slot] + block + text[after_slot:]
+                     + f"\n{want_indent}<!-- END GENERATED:{key} -->\n\n")
+            # 落点区间 = SLOT 行末（含其换行）到其后第一个非空行之前。
+            # 整段替换而非插入：重建多少次都幂等，不累积空行（曾多留 5 字节导致 restore 不干净）。
+            after_slot = sm.end()
+            if after_slot < len(text) and text[after_slot] in "\r\n":
+                if text[after_slot:after_slot + 2] == "\r\n":
+                    after_slot += 2
+                else:
+                    after_slot += 1
+            # 找 SLOT 之后第一个「含非空白字符」的行的行首，整行保留（含缩进）。
+            # 不能用「第一个非换行字符」——删块后残留的纯缩进空行会被当成正文，逐次累积。
+            gap_end = len(text)
+            m = re.search(r"^[ \t]*\S", text[after_slot:], re.M)
+            if m:
+                ls = text.rfind("\n", after_slot, after_slot + m.start())
+                gap_end = ls + 1 if ls >= 0 else after_slot + m.start()
+            text = text[:after_slot] + block + text[gap_end:]
             local_inserted.append(key)
         write(path, text)
         print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块"

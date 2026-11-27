@@ -1,5 +1,9 @@
 {
   "files": {
+    ".gitattributes": {
+      "sha256": "00d6b1f1098c32af7925f2e219c53e3bdfb951b59ca4881e32eaf7fbcb1484fe",
+      "size": 385
+    },
     ".github/workflows/verify.yml": {
       "sha256": "76b6020ac18e8de8ee53c4bf2c33736a80e305d0aa4b5d4637f513a4d68a1d3c",
       "size": 11760
@@ -9,12 +13,12 @@
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "9d26b0e92c93b0fb0c590ba193406f24b4cfc533000e8c6c9e67e01a4fa66f42",
-      "size": 23422
+      "sha256": "d36046223a534f3e5e82668ab085a8bbd7dc8d558356b3157213075fa9592dac",
+      "size": 23712
     },
     "README.md": {
-      "sha256": "b71aaa4bd1dd2459d9f12ebaa7d8ff141e4b52d22d10598a1bf02c82922a3f45",
-      "size": 21172
+      "sha256": "c759908588c6d6e816562cb2049ea758674e2d43fae4e6deca3ad8e2f0a33341",
+      "size": 21406
     },
     "dist/work-discipline.flat.en.md": {
       "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
@@ -33,8 +37,8 @@
       "size": 6452
     },
     "scripts/build_dist.py": {
-      "sha256": "28483da300f664fde1cb3ad694a51c38449427d9707b8cadad7cdb915dbd896c",
-      "size": 23295
+      "sha256": "615f19fd440371c9204127cebe8e56656ef29795eb0e6d89fe8dbf30fc7983ec",
+      "size": 24743
     },
     "scripts/verify_skill.py": {
       "sha256": "7996205c0b7631269097054a7715edcad532b55f7eecca500af6059246bfe971",

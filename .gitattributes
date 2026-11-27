@@ -1,0 +1,9 @@
+# 规则与分发文件统一 LF：manifest 的 SHA256 按 LF 计算，Windows checkout 不得转 CRLF，
+# 否则 verify_skill.py 的哈希校验在 Windows runner 上必然失败（v10 起的历史 bug）。
+* text=auto eol=lf
+
+# 二进制/无需转换的留空（本仓库目前无二进制；保留此注记供后续扩展）。
+*.png binary
+*.jpg binary
+*.gif binary
+*.zip binary
