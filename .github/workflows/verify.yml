@@ -234,4 +234,34 @@ jobs:
           cp /tmp/good-cn.md README.md
           python scripts/build_dist.py --check > /dev/null 2>&1 || { echo "FAIL: restore not clean"; exit 1; }
           echo "  caught missing-SLOT (refused to guess landing)"
-          echo "PASS: blocks × CN/EN, brand, version, 4-way self-heal, in-place landing, SLOT authority all verified"
+          # 8) SLOT 是唯一权威，块健康时也必须受门禁：挪节 / 删除 / 复制三例。
+          #    之前 --check 只报 manifest 哈希、generate 静默 PASS，坏状态被写成合法基准。
+          for scase in moved duplicated deleted; do
+            cp /tmp/good-cn.md README.md
+            python - "$scase" <<'PY'
+          import io, re, sys
+          case = sys.argv[1]
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          anchor = "<!-- SLOT:repo-tree -->"
+          if case == "moved":
+              t = t.replace(anchor + "\n", "", 1)
+              ins = "## 安装与恢复\n"
+              t = t.replace(ins, ins + "   " + anchor + "\n", 1)
+          elif case == "deleted":
+              t = t.replace(anchor + "\n", "", 1)
+          else:  # duplicated
+              t = t.replace(anchor + "\n", anchor + "\n   " + anchor + "\n", 1)
+          io.open(p, "w", encoding="utf-8").write(t)
+          PY
+            set +e
+            python scripts/build_dist.py --check > /tmp/neg-slot-gate.txt 2>&1
+            gate=$?
+            set -e
+            [ "$gate" -ne 0 ] || { echo "FAIL: $scase SLOT slipped through --check"; cp /tmp/good-cn.md README.md; exit 1; }
+            grep -q "SLOT" /tmp/neg-slot-gate.txt || { echo "FAIL: $scase SLOT not attributed"; cp /tmp/good-cn.md README.md; exit 1; }
+            echo "  caught SLOT $scase (block was healthy)"
+          done
+          cp /tmp/good-cn.md README.md
+          python scripts/build_dist.py --check > /dev/null 2>&1 || { echo "FAIL: restore not clean"; exit 1; }
+          echo "PASS: blocks × CN/EN, brand, version, 4-way self-heal, in-place landing, SLOT authority + 3-way SLOT gate all verified"

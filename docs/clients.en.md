@@ -35,7 +35,9 @@ Call the work-discipline skill before every task; the rules live in that skill, 
 
 **Write only two things: when to call, and where the rules are.** Never copy the rule body into it — two versions conflict, and a resident instruction that looks like the rules makes the agent assume they are loaded and skip the skill. For flat-build clients, change it to "read the discipline section of AGENTS.md before starting", and still do not excerpt rules.
 
-**Responsibility boundary**: "call before every task" belongs here (the host's resident instruction), not in the skill's `description` — the latter declares only explicit triggers so the model can judge relevance. Putting "any task kickoff" in the description forces every installing client to load it at every kickoff, with no per-scenario opt-out.
+**Responsibility boundary**: "call before every task" belongs here (the host's resident instruction), not in the skill's `description` — the latter describes only "what it does / when it is relevant" with a negative boundary (casual chat / one-off Q&A / pure lookups do not trigger). Putting "any task kickoff" in the description forces every installing client to load it at every kickoff, with no per-scenario opt-out.
+
+**Personal trigger words belong here, not in the public description**: e.g. "when I say 'follow the memory', 'self-check', 'list tasks', 'confirm before starting', call this skill too" — these are one operator's habits; other users never say them, so putting them in the public description only burns resident tokens in every client.
 
 ## Self-verification without Python
 

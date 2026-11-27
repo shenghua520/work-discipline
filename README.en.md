@@ -16,9 +16,10 @@ Chinese and English versions, rule by rule.
 
 ## Triggering
 
-- **Explicit triggers**: "follow the memory", "self-check", "list tasks", "confirm before starting".
-- **Negative boundary**: casual chat, single-question Q&A and pure information lookups need not trigger it; this skill's description does not declare "any task kickoff".
+- **Trigger condition**: read this skill when the user hands over work that must land; the description only states "what it does / when it is relevant".
+- **Negative boundary**: casual chat, one-off Q&A and pure information lookups **do not trigger** (an assertion, not "it depends").
 - **"Call before every task" belongs to the host's resident instruction**: put it in the client's resident instruction (see installation step 2 below), not in the skill description — otherwise every client that installs it is forced to load it at every kickoff, with no way to turn it off for out-of-scope uses.
+- **Personal trigger words stay out of the public description**: operator habits like "follow the memory", "self-check", "list tasks", "confirm before starting" belong in the host's resident instruction (see `docs/clients.md`); other users never say them, so putting them in the public description only burns resident tokens.
 - When online writes / bulk jobs / delegation / memory edits come into scope, the main file routes to the matching file under `references/` — **this is a hard requirement: if the file cannot be read, stop and report the error; never reconstruct the details from memory**.
 
 ## Installation and recovery
@@ -125,6 +126,7 @@ Chinese and English versions, rule by rule.
 <!-- BEGIN GENERATED:repo-tree -->
 ```text
 .
+├── .gitattributes                   # repo-level LF checkout config (exception: not in manifest / install copy)
 ├── .github/workflows/verify.yml     # CI: dual job (with/without PyYAML) × dual OS
 ├── LICENSE                          # MIT
 ├── README.md                        # this document (Chinese)
@@ -144,14 +146,14 @@ Chinese and English versions, rule by rule.
         ├── SKILL.md                 # main rule file · Chinese · sole entry point
         ├── SKILL.en.md              # main rule file · English
         └── references/
-            ├── execution-layer.md      # seven-step method + three iron rules
-            ├── execution-layer.en.md      # seven-step method + three iron rules
-            ├── delegation-layer.md     # four moments of delegation
-            ├── delegation-layer.en.md     # four moments of delegation
-            ├── memory-maintenance.md   # memory maintenance rules
-            ├── memory-maintenance.en.md   # memory maintenance rules
-            ├── project-notes.md        # backend-specific notes (void elsewhere)
-            └── project-notes.en.md        # backend-specific notes (void elsewhere)
+            ├── execution-layer.md       # seven-step method + three iron rules
+            ├── execution-layer.en.md    # seven-step method + three iron rules
+            ├── delegation-layer.md      # four moments of delegation
+            ├── delegation-layer.en.md   # four moments of delegation
+            ├── memory-maintenance.md    # memory maintenance rules
+            ├── memory-maintenance.en.md # memory maintenance rules
+            ├── project-notes.md         # backend-specific notes (void elsewhere)
+            └── project-notes.en.md      # backend-specific notes (void elsewhere)
 ```
 <!-- END GENERATED:repo-tree -->
 
@@ -205,6 +207,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v11.1 review-driven fixes**: external review reproduced four issues, all fixed — (1) no SLOT gate: `doc_blocks_status` now asserts exactly one SLOT per key inside its owning section, so a moved/deleted/duplicated SLOT (with a healthy block) turns from a silent PASS into an attributed error, closing the v10 bug's re-entry path; (2) misplaced orphan END left residue: clear-then-rebuild now deletes whole marker lines (indent + newline), so all four half-marker cases plus the misplaced case return byte-for-byte to baseline; (3) self-contradictory description: "Read before every task" → "When the user hands over work that must land", "are optional" → assertion "do not trigger", and the personal trigger-word list moved from the public description to the host-resident-instruction example (CN 375→289, EN 966→889 chars); (4) repo tree gained the `.gitattributes` exception note and aligned comment columns. CI negative job gained 3-way SLOT-gate assertions.
 - **v11 landing ownership + trigger-responsibility split**: (1) clear-and-rebuild now uses a hand-written `<!-- SLOT:key -->` anchor in the README as the sole authority for placement, never trusting where an orphan marker landed — fixes v10's bug of moving the block into the wrong (empty) section; orphan markers elsewhere still snap back to the SLOT, and a missing SLOT is refused rather than guessed. Rebuilt content is filled back byte-for-byte from the generator output (`want`) instead of re-adding SLOT indentation — fixes a self-test finding where the whole-block case rebuilt with doubled indentation and `--check` failed permanently. The landing span is replaced in full up to "the first line after SLOT containing a non-whitespace character", not appended to — fixes the CI finding where each self-heal left 5 extra bytes and was not idempotent; all four half-marker cases now return byte-for-byte to the clean baseline. (2) The public `description` drops "any task kickoff" in favor of explicit triggers + a negative boundary (casual chat / single-question Q&A / pure lookups don't trigger); "call before every task" moves to the host's resident-instruction responsibility — no forced load at every kickoff for every client, with no way to opt out. CI's negative job gains a missing-SLOT self-heal failure assertion. (3) CI layer: add `.gitattributes` to force LF checkout (fixes the historical Windows-runner hash mismatch from CRLF); force UTF-8 stdout/stderr in both `verify_skill.py` and `build_dist.py` (fixes the historical cp1252 crash on Chinese `print`); `.gitattributes` is repo-level config and is excluded from the manifest and install-copy check. All five CI jobs across both platforms are now green.
 - **v10 repair with delete semantics**: fixed v9's self-heal false green — when only half a marker remained (orphan BEGIN/END), the old logic appended a fresh block, left the wreckage in place, and `--check` then blessed the bad state by recomputing the manifest. Now: (1) every key requires BEGIN count == END count == 1, orphans/duplicates are DIFFs; (2) repair is clear-then-rebuild-in-place — all markers and all content copies for that key are deleted first, never appended to EOF (landing moved from 9789 chars away back inside the install section); (3) a post-generation idempotence assertion (rendered content occurs exactly once); (4) per-file "rebuilt" reporting instead of an always-empty `[]`; (5) VERSION is cross-checked against the first changelog entry's vN (v10 ↔ 10.0.0), so the constant is no longer validated only by itself. CI's negative job gained four half-marker self-heal cases plus an in-place landing assertion.
 - **v9 generation closed loop**: fixed three v8 residuals — (1) `generate` used to print "backfilled 4 blocks" when one was missing (only 3 existed) and still reported PASS, a false green on the write path; it now auto-inserts missing blocks by marker, reports the insertion, and re-checks all blocks afterwards, failing if any remain missing. (2) `manifest.version` is now a single source — the `VERSION` constant in `build_dist.py` — and `--check` compares its value (previously only presence was checked, so tampering to 9.9.9 still passed). (3) install tree and repo tree now list all 8 refs instead of a language-specific 4 (a tree describes a directory, not a language view) — v7 fixed this, v8's generator regressed it to half. CI's negative job gained version-tamper and generate-self-heal assertions.

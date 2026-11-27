@@ -1,20 +1,20 @@
 {
   "files": {
     ".github/workflows/verify.yml": {
-      "sha256": "76b6020ac18e8de8ee53c4bf2c33736a80e305d0aa4b5d4637f513a4d68a1d3c",
-      "size": 11760
+      "sha256": "c8e49e7adf2e565b0edde322bece1d99c69c2cef8b9c65fc3a4027993c9bc6d0",
+      "size": 13375
     },
     "LICENSE": {
       "sha256": "84b27b8368e17abb66d51f91adea92598fc86bb7e1bfccbcb15f6369922c8b65",
       "size": 1068
     },
     "README.en.md": {
-      "sha256": "1f925fc273893adf506ef8f633cb9a30d44bee5c9cc82cf606cef93113d451df",
-      "size": 24109
+      "sha256": "c9a8f5994e7dac1f1251ff1238cee83a2c7fde0a052ef2efc5b21173c63f0529",
+      "size": 25539
     },
     "README.md": {
-      "sha256": "6b28d186983997e289badf2002b003e234180aa7e084aa3ef7f63be6aa476173",
-      "size": 21785
+      "sha256": "dbb19fad0a8b8d37114fd8a9590a0d49e10c0d03d921dd57d3e4a8597f65ff67",
+      "size": 22932
     },
     "dist/work-discipline.flat.en.md": {
       "sha256": "0562292d740ace734a21a78f14b1921ac295cb05cc3c72e703f3f4d4764fb9ce",
@@ -25,28 +25,28 @@
       "size": 16662
     },
     "docs/clients.en.md": {
-      "sha256": "f672fd8df0f7e3bb4201ba62668204e92041a2f40567d815920fa7802e78b7b7",
-      "size": 6927
+      "sha256": "de0edb5ca0329a8ff99f1eea451d89813a82189e13faece116614752722ae57d",
+      "size": 7334
     },
     "docs/clients.md": {
-      "sha256": "5390b5220171f829c86e4d7d70e30c61966b250cd0ef5c042077a7402eef6090",
-      "size": 6452
+      "sha256": "f4f7883c9c0aa5577a3aceb5d843cd0fbd6fd9723ae65b913a83a04545843df1",
+      "size": 6827
     },
     "scripts/build_dist.py": {
-      "sha256": "485639272b4b91a2b720ffc78b4023c695fbb24de7602403658aeb028624d30d",
-      "size": 25239
+      "sha256": "c4d6e961a8212a07f70c57810970cccf2b4e980b1843d0970c278a57733928b1",
+      "size": 27268
     },
     "scripts/verify_skill.py": {
       "sha256": "7996205c0b7631269097054a7715edcad532b55f7eecca500af6059246bfe971",
       "size": 12482
     },
     "skills/work-discipline/SKILL.en.md": {
-      "sha256": "adf038779fd5969fce7991606729c7ec5ec0d060c47a83ccb697bf094bf2d630",
-      "size": 8068
+      "sha256": "54081784f4107cf635c5e1a540f81ffe6ecf105ad1026c718486a79555325472",
+      "size": 7991
     },
     "skills/work-discipline/SKILL.md": {
-      "sha256": "2e23d918e4747a616cd39ffcacc41116a0b637fdc8530b4da2fc9843f17ad9e9",
-      "size": 6656
+      "sha256": "7879afedcdb393f35c0dd097e718f54ea9fc1c031683e8ac62ac198d5d895acf",
+      "size": 6484
     },
     "skills/work-discipline/references/delegation-layer.en.md": {
       "sha256": "dd90f64a72f397f448f618f1da0ced67b09c096bf8b17073b1cfbc7f5ede6591",

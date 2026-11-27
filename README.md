@@ -16,9 +16,10 @@
 
 ## 触发方式
 
-- **显式触发词**：用户说「按记忆执行」「自检」「列出任务」「开工前确认」「self-check」「list tasks」「confirm before starting」时触发。
-- **负边界**：日常闲聊、单句问答、纯信息查询不必触发；本 skill 的 description 不声明「任何开工场景均触发」。
+- **触发条件**：用户交办一项要落地的工作时先读本 skill；description 只描述「做什么 / 何时相关」。
+- **负边界**：日常闲聊、单句问答、纯信息查询**不触发**（断言句，不是「看情况」）。
 - **「每次开工都调用」属宿主常驻指令职责**：写在客户端的常驻指令里（见下方安装第 2 步），不写进 skill 的 description——否则每个装了它的客户端都被强制每次开工加载，与客户端无关的使用场景无法关闭。
+- **个人口令不进公共 description**：「按记忆执行」「自检」「列出任务」「开工前确认」等操作者习惯写进宿主常驻指令（`docs/clients.md` 有示例），别的用户不说这些词，写进公共描述只是白烧常驻 token。
 - 命中线上写操作 / 批量作业 / 派活 / 改记忆时，主文件会路由到 `references/` 下对应的细则文件——**这一步是硬要求，读不到文件必须停下报错，不许凭印象补齐**。
 
 ## 安装与恢复
@@ -125,6 +126,7 @@
 <!-- BEGIN GENERATED:repo-tree -->
 ```text
 .
+├── .gitattributes                   # repo 级 LF checkout 配置（例外：不进 manifest / install 副本）
 ├── .github/workflows/verify.yml     # CI：双 job（有/无 PyYAML）× 双平台
 ├── LICENSE                          # MIT
 ├── README.md                        # 本说明（中文）
@@ -144,14 +146,14 @@
         ├── SKILL.md                 # 规则主文件 · 中文 · 唯一入口
         ├── SKILL.en.md              # 规则主文件 · 英文
         └── references/
-            ├── execution-layer.md      # 执行层七步法 + 三条铁律
-            ├── execution-layer.en.md      # 执行层七步法 + 三条铁律
-            ├── delegation-layer.md     # 委托层四时机
-            ├── delegation-layer.en.md     # 委托层四时机
-            ├── memory-maintenance.md   # 记忆维护规则
-            ├── memory-maintenance.en.md   # 记忆维护规则
-            ├── project-notes.md        # 特定后端的私有经验（换项目即作废）
-            └── project-notes.en.md        # 特定后端的私有经验（换项目即作废）
+            ├── execution-layer.md       # 执行层七步法 + 三条铁律
+            ├── execution-layer.en.md    # 执行层七步法 + 三条铁律
+            ├── delegation-layer.md      # 委托层四时机
+            ├── delegation-layer.en.md   # 委托层四时机
+            ├── memory-maintenance.md    # 记忆维护规则
+            ├── memory-maintenance.en.md # 记忆维护规则
+            ├── project-notes.md         # 特定后端的私有经验（换项目即作废）
+            └── project-notes.en.md      # 特定后端的私有经验（换项目即作废）
 ```
 <!-- END GENERATED:repo-tree -->
 
@@ -205,6 +207,7 @@ python scripts/build_dist.py --check        # 扁平版与 manifest 是否与源
 
 ## 变更记录
 
+- **v11.1 复评补丁**：外部复评逐条实测后修四类问题——① SLOT 无门禁：`doc_blocks_status` 现断言每个 key 恰好 1 个 SLOT 且落在归属章节区间，SLOT 被挪/删/复制（块健康时）从「静默 PASS」变成报错归因，堵住 v10 bug 的复发入口；② 错位孤立 END 自愈残留：清场按整行删除标记（含缩进与换行），四类半标记 + 错位场景全部逐字回基线；③ description 自相矛盾：开头「每次开工前先读」改为「接手一项要落地的工作时先读」，「按需调用」改为断言「不触发」，个人口令表从公共 description 移到宿主常驻指令示例（CN 375→289、EN 966→889 字符）；④ repo-tree 补 `.gitattributes` 例外说明并统一注释列对齐。CI 反向 job 补 3-way SLOT 门禁断言。
 - **v11 落点归属 + 触发职责分离**：① 生成块清场重建的落点改为以 README 里手写的 `<!-- SLOT:key -->` 为唯一权威，不再采信孤儿标记出现在哪——修 v10 把块搬到错误章节（空壳章节）的 bug，孤儿标记在别处也照着 SLOT 归位；缺 SLOT 直接拒绝重建，不猜落点；重建块内容用生成器原文（`want`）逐字回填，不再叠加 SLOT 缩进——修自测发现的「whole 场景重建后块缩进翻倍、`--check` 永久失败」问题；重建落点区间整段替换到「SLOT 后第一个含非空白字符的行」，不是简单插入——修 CI 发现的「每次自愈多留 5 字节空行、不幂等」问题，四类半标记自愈后逐字回到干净基线。② 公共 `description` 删去「任何开工场景均触发」，改为显式触发词 + 负边界（闲聊/单句问答/纯信息查询不触发）；「每次开工调用」归到宿主常驻指令职责——避免装了就强制每次开工加载、无法按场景关闭。CI 反向 job 补 SLOT 缺锚点自愈失败断言。③ CI 层：加 `.gitattributes` 强制 LF checkout（修 Windows runner 因 CRLF 导致 manifest 哈希不符的历史 bug）；`verify_skill.py` 与 `build_dist.py` 强制 stdout/stderr UTF-8（修 Windows cp1252 下中文 print 崩溃的历史 bug）；`.gitattributes` 属 repo 级配置，排除出 manifest 与 install 副本校验。至此双平台 5 个 CI job 全绿。
 - **v10 自愈带删除语义**：修 v9 自愈的静默失败——只删一半标记（BEGIN/END 孤儿）时，旧逻辑追加新块、把残骸留原地，`--check` 重算 manifest 后反而给坏状态盖合法章。现在：① 每个 key 强制 `BEGIN 数 == END 数 == 1`，孤儿/重复直接 DIFF；② 修块改为「清场 → 原位置重建」——先删该 key 的所有标记与所有内容副本，不再 append 到文件末尾（落点从距安装章节 9789 字符回到节内）；③ 生成结束加幂等断言（渲染内容全篇只出现一次）；④ 报告改为按文件的清场重建列表，去掉恒空的 `[]`；⑤ VERSION 与 CHANGELOG 首条 vN 联动校验（v10 ↔ 10.0.0），常量只被自己校验的装饰问题再次收敛。CI 反向 job 补四类半标记自愈 + 落点断言。
 - **v9 生成闭环**：修三条 v8 残留——① `generate` 缺块时曾打印「回填 4 个」实际只 3 个还报 PASS（写路径伪绿）；现在缺块按标记自动补插、如实报告，回填后再调一次块复检，仍有缺失则 exit 1。② `manifest.version` 收敛为 `build_dist.py` 的 `VERSION` 常量单一来源，`--check` 比对值（之前只查字段存在，篡改 9.9.9 仍 PASS）。③ 安装树与仓库结构树从分语言的 4 个 refs 改为列全 8 个（树描述目录，不是语言视图）——v7 修过、v8 生成时又退回半份的问题。CI 反向 job 补 version 篡改与 generate 自愈两组断言。

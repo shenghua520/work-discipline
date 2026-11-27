@@ -195,6 +195,7 @@ def gen_repo_tree(lang):
     if lang == "cn":
         head = [
             "```text", ".",
+            "├── .gitattributes                   # repo 级 LF checkout 配置（例外：不进 manifest / install 副本）",
             "├── .github/workflows/verify.yml     # CI：双 job（有/无 PyYAML）× 双平台",
             "├── LICENSE                          # MIT",
             "├── README.md                        # 本说明（中文）",
@@ -215,6 +216,7 @@ def gen_repo_tree(lang):
     else:
         head = [
             "```text", ".",
+            "├── .gitattributes                   # repo-level LF checkout config (exception: not in manifest / install copy)",
             "├── .github/workflows/verify.yml     # CI: dual job (with/without PyYAML) × dual OS",
             "├── LICENSE                          # MIT",
             "├── README.md                        # this document (Chinese)",
@@ -234,20 +236,21 @@ def gen_repo_tree(lang):
         ]
     lines = list(head)
     notes = {
-        "execution-layer.md": "      # 执行层七步法 + 三条铁律" if lang == "cn" else "      # seven-step method + three iron rules",
-        "delegation-layer.md": "     # 委托层四时机" if lang == "cn" else "     # four moments of delegation",
-        "memory-maintenance.md": "   # 记忆维护规则" if lang == "cn" else "   # memory maintenance rules",
-        "project-notes.md": "        # 特定后端的私有经验（换项目即作废）" if lang == "cn" else "        # backend-specific notes (void elsewhere)",
+        "execution-layer.md": "# 执行层七步法 + 三条铁律" if lang == "cn" else "# seven-step method + three iron rules",
+        "delegation-layer.md": "# 委托层四时机" if lang == "cn" else "# four moments of delegation",
+        "memory-maintenance.md": "# 记忆维护规则" if lang == "cn" else "# memory maintenance rules",
+        "project-notes.md": "# 特定后端的私有经验（换项目即作废）" if lang == "cn" else "# backend-specific notes (void elsewhere)",
     }
-    lines.append("        ├── SKILL.md" + ("                 # 规则主文件 · 中文 · 唯一入口" if lang == "cn" else "                 # main rule file · Chinese · sole entry point"))
-    lines.append("        ├── SKILL.en.md" + ("              # 规则主文件 · 英文" if lang == "cn" else "              # main rule file · English"))
+    # 注释列统一从第 25 列起：文件名 ljust(25) 后接 #，避免 .en.md 比 .md 长 3 字符时注释错位。
+    lines.append("        ├── " + "SKILL.md".ljust(25) + ("# 规则主文件 · 中文 · 唯一入口" if lang == "cn" else "# main rule file · Chinese · sole entry point"))
+    lines.append("        ├── " + "SKILL.en.md".ljust(25) + ("# 规则主文件 · 英文" if lang == "cn" else "# main rule file · English"))
     lines.append("        └── references/")
     refs = all_refs()
     for i, r in enumerate(refs):
         conn = "└── " if i == len(refs) - 1 else "├── "
         base = r.replace(".en.md", ".md")
         comment = notes.get(base, "")
-        lines.append("            " + conn + r + comment)
+        lines.append("            " + conn + r.ljust(25) + comment)
     lines.append("```")
     return "\n".join(lines)
 
@@ -286,7 +289,23 @@ def doc_blocks_status():
             continue
         text = read(path)
         expected = render_blocks(lang)
+        # SLOT 是重建落点的唯一权威，必须有且只有一份、且待在归属章节内。
+        # 否则块健康时 --check 静默 PASS，SLOT 被挪/删/复制都无人发现——
+        # 等于给 v10「孤儿标记把块搬错章节」的 bug 留了复发入口（T5/T6/T7）。
         for key, want in expected.items():
+            # 每个 key 的归属章节不同，章节断言按 key 计算。
+            slot_section = ("## 安装与恢复" if lang == "cn" else "## Installation and recovery") \
+                if key in ("install-tree", "bash-download", "ps-download") else \
+                ("## 仓库结构" if lang == "cn" else "## Repository layout")
+            slot_hits = re.findall(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
+            if len(slot_hits) != 1:
+                problems.append(f"{filename} SLOT 计数异常 {key}: {len(slot_hits)}（应为 1）")
+            else:
+                sp = text.find("<!-- SLOT:" + key + " -->")
+                sec = text.rfind(slot_section, 0, sp)
+                nxt = text.find("\n## ", sec + len(slot_section)) if sec >= 0 else -1
+                if sec < 0 or (0 <= nxt < sp):
+                    problems.append(f"{filename} SLOT 落点错误 {key}: 不在「{slot_section}」章节内")
             nb, ne = markers_of(text, key)
             if nb != 1 or ne != 1:
                 problems.append(f"{filename} 标记计数异常 {key}: BEGIN={nb} END={ne}（各须为 1）")
@@ -336,9 +355,15 @@ def regenerate_readme_blocks():
             sm = re.search(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
             if not sm:
                 raise SystemExit(f"缺少 SLOT 锚点：{filename}/{key}（无法安全重建，拒绝猜测落点）")
-            # 清场：删掉该 key 的一切残骸——所有标记 + 所有渲染内容副本（含无标记孤儿）
-            spans = [(x.start(), x.end()) for x in re.finditer(
-                r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text)]
+            # 清场：删掉该 key 的一切残骸——所有标记 + 所有渲染内容副本（含无标记孤儿）。
+            # 标记要整行删除（含前导缩进与换行）：错位到别节的孤立标记只删 token 会留下
+            # 一行纯缩进，那行不会被 SLOT 区间清理，自愈后多一行、不回基线（T4 复评）。
+            spans = []
+            for x in re.finditer(
+                    r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text):
+                ls = text.rfind("\n", 0, x.start()) + 1
+                le = text.find("\n", x.end())
+                spans.append((ls, le + 1 if le >= 0 else len(text)))
             pos = 0
             while True:
                 k = text.find(want, pos)
