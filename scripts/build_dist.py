@@ -313,11 +313,35 @@ def doc_blocks_status():
             m = BLOCK_RE(key).search(text)
             if not m:
                 problems.append(f"{filename} 缺生成标记 {key}")
-            elif m.group(2) != want:
-                problems.append(f"{filename} 生成块 {key} 不同步")
+            else:
+                # 门牌断言：块必须紧贴自己的 SLOT（BEGIN 行起点 == after_slot）。
+                # 只查"SLOT 在哪个节"是户口，不查块是否贴着锚点——
+                # 块被拖到节尾 3000+ 字符外时其余门禁仍全绿（复评 T1/T8）。
+                span = landing_span(text, key)
+                if span is None:
+                    problems.append(f"{filename} SLOT 落点错误 {key}: 无有效 SLOT 区间")
+                else:
+                    bl = re.search(r"^[ \t]*<!-- BEGIN GENERATED:" + re.escape(key) + r" -->", text, re.M)
+                    if not bl or bl.start() != span[0]:
+                        dist = (bl.start() - span[0]) if bl else -1
+                        problems.append(f"{filename} SLOT 与块不相邻 {key}: 相距 {dist} 字符（应为 0）")
+                if m.group(2) != want:
+                    problems.append(f"{filename} 生成块 {key} 不同步")
             # 幂等/唯一性：同一 key 的渲染内容全篇只允许出现一次
             if text.count(want) != 1:
                 problems.append(f"{filename} 生成块 {key} 内容出现 {text.count(want)} 次（应为 1）")
+        # 仓库结构树必须与真实磁盘文件一致：生成块比对"生成的树 vs README 的树"是同源比对，
+        # 永远一致；丢个 NOTES.md 进仓库根，manifest 收录了它、树没有，门禁仍全绿（复评 D）。
+        tree_files = repo_tree_files(text)
+        disk_files = disk_repo_files()
+        if tree_files is None:
+            problems.append(f"{filename} 仓库结构树缺失，无法交叉校验")
+        elif tree_files != disk_files:
+            only_tree = sorted((tree_files - disk_files).elements())
+            only_disk = sorted((disk_files - tree_files).elements())
+            problems.append(f"{filename} 仓库结构树与磁盘文件不一致"
+                            + (f" 树多 {only_tree}" if only_tree else "")
+                            + (f" 磁盘多 {only_disk}" if only_disk else ""))
         # VERSION 联动：变更记录首条 vN 必须等于 VERSION 的主版本
         title = "## 变更记录" if lang == "cn" else "## Changelog"
         changelog = text.split(title, 1)
@@ -328,6 +352,30 @@ def doc_blocks_status():
             if vm and vm.group(1) != want_v[1:]:
                 problems.append(f"{filename} 变更记录首条 v{vm.group(1)} 与 VERSION {VERSION} 不一致（应 {want_v}）")
     return problems
+
+
+def landing_span(text, key):
+    """SLOT 行末（归一换行后）到其后第一个含非空白字符行的行首。
+
+    这是块的合法落点区间起点/终点，生成与校验共用同一函数——
+    避免"生成按 A 算、校验按 B 算"两套粒度导致 SLOT 有户口没门牌。
+    返回 (after_slot, gap_end)：重建块必须插在 after_slot，正文从 gap_end 续。
+    """
+    sm = re.search(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
+    if not sm:
+        return None
+    after_slot = sm.end()
+    if after_slot < len(text) and text[after_slot] in "\r\n":
+        if text[after_slot:after_slot + 2] == "\r\n":
+            after_slot += 2
+        else:
+            after_slot += 1
+    gap_end = len(text)
+    m = re.search(r"^[ \t]*\S", text[after_slot:], re.M)
+    if m:
+        ls = text.rfind("\n", after_slot, after_slot + m.start())
+        gap_end = ls + 1 if ls >= 0 else after_slot + m.start()
+    return after_slot, gap_end
 
 
 def regenerate_readme_blocks():
@@ -383,27 +431,46 @@ def regenerate_readme_blocks():
             block = (f"{want_indent}<!-- BEGIN GENERATED:{key} -->\n"
                      + want
                      + f"\n{want_indent}<!-- END GENERATED:{key} -->\n\n")
-            # 落点区间 = SLOT 行末（含其换行）到其后第一个非空行之前。
-            # 整段替换而非插入：重建多少次都幂等，不累积空行（曾多留 5 字节导致 restore 不干净）。
-            after_slot = sm.end()
-            if after_slot < len(text) and text[after_slot] in "\r\n":
-                if text[after_slot:after_slot + 2] == "\r\n":
-                    after_slot += 2
-                else:
-                    after_slot += 1
-            # 找 SLOT 之后第一个「含非空白字符」的行的行首，整行保留（含缩进）。
-            # 不能用「第一个非换行字符」——删块后残留的纯缩进空行会被当成正文，逐次累积。
-            gap_end = len(text)
-            m = re.search(r"^[ \t]*\S", text[after_slot:], re.M)
-            if m:
-                ls = text.rfind("\n", after_slot, after_slot + m.start())
-                gap_end = ls + 1 if ls >= 0 else after_slot + m.start()
+            # 落点区间用与校验共用的 landing_span 计算，杜绝两套粒度。
+            # 整段替换而非插入：重建多少次都幂等，不累积空行。
+            after_slot, gap_end = landing_span(text, key)
             text = text[:after_slot] + block + text[gap_end:]
             local_inserted.append(key)
         write(path, text)
         print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块"
               + (f"（清场重建 {local_inserted}）" if local_inserted else ""))
     return True
+
+
+def repo_tree_files(text):
+    """从 repo-tree 生成块里提取文件名（basename 多重集），用于和真实仓库交叉断言。"""
+    m = BLOCK_RE("repo-tree").search(text)
+    if not m:
+        return None
+    names = []
+    for line in m.group(2).split("\n"):
+        mm = re.search(r"(?:├──|└──)\s+(\S+)", line)
+        if not mm:
+            continue
+        name = mm.group(1)
+        if name.endswith("/"):  # 目录行不算文件
+            continue
+        names.append(os.path.basename(name))
+    from collections import Counter
+    return Counter(names)
+
+
+def disk_repo_files():
+    """仓库磁盘上真实存在的文件 basename 多重集（排除 .git 与本脚本自己产出的临时物）。"""
+    out = []
+    for root, dirs, names in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for n in names:
+            if n.endswith((".pyc", ".tmp")):
+                continue
+            out.append(n)
+    from collections import Counter
+    return Counter(out)
 
 
 def tracked_files():

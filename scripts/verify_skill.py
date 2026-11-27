@@ -140,6 +140,13 @@ def main():
         check(len(logical) == 2, f"{label} frontmatter 仅 name + description", f"折叠后 {len(logical)} 字段")
         desc = description(fm)
         check(0 < len(desc) <= 1024, f"{label} description 长度", f"{len(desc)} / 1024")
+        # 语义守卫：触发规则改对后必须能被守住，否则哈希只会报"文件被改"，
+        # 谁都能把"任何开工场景均触发"悄无声息塞回来（复评 C）。
+        banned = ["任何开工场景", "每次开工前先读", "any task kickoff", "read before every task"]
+        hits = [b for b in banned if b.lower() in desc.lower()]
+        check(not hits, f"{label} description 无禁用触发短语", f"命中 {hits}")
+        required = "不触发" if label == "CN" else "do not trigger"
+        check(required in desc, f"{label} description 含负边界断言", required)
         yaml_check(fm, f"{label}")
 
     print("\n=== 2. 中英结构对齐（数量 + 骨架指纹）===")
