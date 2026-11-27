@@ -17,6 +17,14 @@ import os
 import re
 import sys
 
+# Windows CI 控制台默认 cp1252，print 中文会 UnicodeEncodeError 直接崩（历史 bug）。
+# 强制 stdout/stderr 走 UTF-8；reconfigure 在 3.7+ 可用，旧版退回 PYTHONIOENCODING 提示。
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 FAILURES = []
 PARTIALS = []
 
