@@ -17,6 +17,13 @@ import os
 import re
 import sys
 
+# Windows CI 控制台 cp1252 无法输出中文 PASS/DIFF 消息（verify_skill.py 同样处理）。
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DIST = os.path.join(ROOT, "dist")

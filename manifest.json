@@ -33,8 +33,8 @@
       "size": 6452
     },
     "scripts/build_dist.py": {
-      "sha256": "82382f5c51872eb1e03a73c0f7c57a23e9b563f82553dd7efad520acba4cc36a",
-      "size": 24980
+      "sha256": "485639272b4b91a2b720ffc78b4023c695fbb24de7602403658aeb028624d30d",
+      "size": 25239
     },
     "scripts/verify_skill.py": {
       "sha256": "7996205c0b7631269097054a7715edcad532b55f7eecca500af6059246bfe971",
