@@ -381,7 +381,9 @@ def tracked_files():
         for name in names:
             full = os.path.join(root, name)
             rel = os.path.relpath(full, ROOT).replace(os.sep, "/")
-            if rel == "manifest.json" or rel.startswith(".git/") or rel.startswith("dist/"):
+            # manifest.json 自引用循环；.gitattributes 是 repo 级 checkout 配置，
+            # 既不属于 install 副本、verify_skill.py 也不校验它，纳入清单只会让 CI 报「缺失」。
+            if rel in ("manifest.json", ".gitattributes") or rel.startswith(".git/") or rel.startswith("dist/"):
                 continue
             if rel in ("SKILL.md", "SKILL.en.md") or rel.startswith("references/"):
                 rel = "skills/work-discipline/" + rel
