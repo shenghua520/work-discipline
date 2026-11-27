@@ -212,4 +212,26 @@ jobs:
           print("  install-tree restored in place")
           PY
           cp /tmp/good-cn.md README.md
-          echo "PASS: blocks × CN/EN, brand, version, 4-way self-heal, in-place landing all verified"
+          # 7) SLOT 是落点唯一权威：删掉某块的 SLOT 锚点后，即使整块也缺失，
+          #    生成器必须拒绝猜测落点（非 0 退出），不许 append 到别处伪造成功。
+          python - <<'PY'
+          import io, re
+          p = "README.md"
+          t = io.open(p, encoding="utf-8").read()
+          t = re.sub(r"^[ \t]*<!-- SLOT:install-tree -->[ \t]*\n?", "", t, count=1, flags=re.M)
+          mb = re.search(r"^[ \t]*<!-- BEGIN GENERATED:install-tree -->[ \t]*$", t, re.M)
+          me = re.search(r"^[ \t]*<!-- END GENERATED:install-tree -->[ \t]*$", t, re.M)
+          assert mb and me, "missing install-tree markers"
+          t = t[:mb.start()] + t[me.end():]
+          io.open(p, "w", encoding="utf-8").write(t)
+          PY
+          set +e
+          python scripts/build_dist.py > /tmp/neg-slot.txt 2>&1
+          slot=$?
+          set -e
+          [ "$slot" -ne 0 ] || { echo "FAIL: missing SLOT did not stop regeneration"; cp /tmp/good-cn.md README.md; exit 1; }
+          grep -q "缺少 SLOT" /tmp/neg-slot.txt || { echo "FAIL: missing SLOT not attributed"; cp /tmp/good-cn.md README.md; exit 1; }
+          cp /tmp/good-cn.md README.md
+          python scripts/build_dist.py --check > /dev/null 2>&1 || { echo "FAIL: restore not clean"; exit 1; }
+          echo "  caught missing-SLOT (refused to guess landing)"
+          echo "PASS: blocks × CN/EN, brand, version, 4-way self-heal, in-place landing, SLOT authority all verified"

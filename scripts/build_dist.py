@@ -35,7 +35,7 @@ EXTRA_FILES = ["manifest.json", "scripts/verify_skill.py"]
 REFS_CN = ["execution-layer.md", "delegation-layer.md", "memory-maintenance.md", "project-notes.md"]
 REFS_EN = [f.replace(".md", ".en.md") for f in REFS_CN]
 # 版本单一来源：manifest.version 由此写入；--check 比对它，不靠人工记。
-VERSION = "10.0.0"
+VERSION = "11.0.0"
 
 HEADER_CN = """# work-discipline · 扁平版（分发用）
 
@@ -323,48 +323,36 @@ def regenerate_readme_blocks():
             if nb == 1 and ne == 1 and m:
                 text = pattern.sub(lambda x: x.group(1) + want + x.group(3), text, count=1)
                 continue
-            # 异常：清场——删除该 key 的一切残骸（所有标记 + 所有渲染内容副本），
-            # 在最早出现处重建一个规范块。删完必须"内容出现 0 次"，否则幂等断言会失败。
-            positions = [x.start() for x in re.finditer(
-                r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text)]
-            # 落点优先用块自己的最早标记位置；整块缺失时退回"该 key 的归属章节"末尾，
-            # 绝不 append 到文件末尾（v9 那个 bug：安装树被贴到变更记录之后）。
-            if positions:
-                anchor = min(positions)
-            else:
-                section = ("## 安装与恢复" if lang == "cn" else "## Installation and recovery") \
-                    if key in ("install-tree", "bash-download", "ps-download") else \
-                          ("## 仓库结构" if lang == "cn" else "## Repository layout")
-                si = text.find(section)
-                if si < 0:
-                    raise SystemExit(f"找不到落点章节 {section}（{filename}/{key}）")
-                nxt = text.find("\n## ", si + len(section))
-                anchor = nxt + 1 if nxt >= 0 else len(text)
-                # 锚点落在下一个章节标题之前，若该处是空行则往前收到非空内容后
-                while anchor > si and text[anchor - 1] in "\n\r":
-                    anchor -= 1
+            # 异常：清场 + 在 SLOT 处原位置重建。
+            # SLOT 是手写在正确章节里的固定锚点，是位置的唯一权威——绝不采信"孤儿标记在哪"。
+            # 这样孤立标记出现在别的章节时，块不会跟着搬过去（v10 的空壳章节 bug）。
+            sm = re.search(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
+            if not sm:
+                raise SystemExit(f"缺少 SLOT 锚点：{filename}/{key}（无法安全重建，拒绝猜测落点）")
+            # 清场：删掉该 key 的一切残骸——所有标记 + 所有渲染内容副本（含无标记孤儿）
             spans = [(x.start(), x.end()) for x in re.finditer(
                 r"<!-- (?:BEGIN|END) GENERATED:" + re.escape(key) + r" -->", text)]
-            # 渲染内容本身的所有出现（孤儿正文就是没有标记包裹的那份）——一起清掉
-            starts = []
             pos = 0
             while True:
                 k = text.find(want, pos)
                 if k < 0:
                     break
-                starts.append((k, k + len(want)))
+                spans.append((k, k + len(want)))
                 pos = k + 1
-            spans.extend(starts)
+            # SLOT 自身不能删；重建时保留它
             for s, e in sorted(set(spans), reverse=True):
                 text = text[:s] + text[e:]
-            block = (f"\n<!-- BEGIN GENERATED:{key} -->\n{want}\n"
-                     f"<!-- END GENERATED:{key} -->\n")
-            anchor = min(anchor, len(text))
-            # 保证标记独占一行：锚点前若非行首则补换行，锚点后若是正文则也补换行
-            left = text[:anchor]
-            if left and not left.endswith("\n"):
-                left += "\n"
-            text = left + block + text[anchor:]
+            sm = re.search(r"^[ \t]*<!-- SLOT:" + re.escape(key) + r" -->[ \t]*$", text, re.M)
+            assert sm, f"SLOT 被误删：{filename}/{key}"
+            after_slot = sm.end()
+            # want 每行已带生成器内置的缩进（如 install-tree 3 空格、bash-download 5 空格），
+            # 不能再叠加 slot_indent——那会让重建块与 want 逐字不等，--check 永久失败。
+            # 标记行的缩进取 want 首行，保证块自身对齐；SLOT 只是位置锚点，不参与渲染。
+            want_indent = re.match(r"[ \t]*", want.split("\n")[0]).group(0)
+            block = (f"\n{want_indent}<!-- BEGIN GENERATED:{key} -->\n"
+                     + want
+                     + f"\n{want_indent}<!-- END GENERATED:{key} -->\n")
+            text = text[:after_slot] + block + text[after_slot:]
             local_inserted.append(key)
         write(path, text)
         print(f"  回填 {filename} 的 {len(GENERATORS)} 个生成块"

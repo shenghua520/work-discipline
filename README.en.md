@@ -16,8 +16,9 @@ Chinese and English versions, rule by rule.
 
 ## Triggering
 
-- Call this skill before every task (depends on the resident hook in the user-level memory file).
-- Triggered when the user says "follow the memory", "self-check", "list tasks", "confirm before starting", or any task kickoff.
+- **Explicit triggers**: "follow the memory", "self-check", "list tasks", "confirm before starting".
+- **Negative boundary**: casual chat, single-question Q&A and pure information lookups need not trigger it; this skill's description does not declare "any task kickoff".
+- **"Call before every task" belongs to the host's resident instruction**: put it in the client's resident instruction (see installation step 2 below), not in the skill description — otherwise every client that installs it is forced to load it at every kickoff, with no way to turn it off for out-of-scope uses.
 - When online writes / bulk jobs / delegation / memory edits come into scope, the main file routes to the matching file under `references/` — **this is a hard requirement: if the file cannot be read, stop and report the error; never reconstruct the details from memory**.
 
 ## Installation and recovery
@@ -26,6 +27,7 @@ Chinese and English versions, rule by rule.
 
 1. **Copy the whole directory**: put `skills/work-discipline/` into the user-level skills directory (common shapes: `~/.workbuddy/skills/`, `~/.claude/skills/`), ending up as:
 
+   <!-- SLOT:install-tree -->
    <!-- BEGIN GENERATED:install-tree -->
    ```text
    <user-level skills dir>/
@@ -56,6 +58,7 @@ Chinese and English versions, rule by rule.
    - **zip / tarball**: repo home → `Code` → `Download ZIP`; extract and copy the whole `skills/work-discipline/` dir into the user-level skills directory.
    - **Per-file raw download (bash)**:
 
+   <!-- SLOT:bash-download -->
    <!-- BEGIN GENERATED:bash-download -->
      ```bash
      BASE="https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
@@ -78,6 +81,7 @@ Chinese and English versions, rule by rule.
 
    - **Per-file raw download (PowerShell)**:
 
+   <!-- SLOT:ps-download -->
    <!-- BEGIN GENERATED:ps-download -->
      ```powershell
      $base = "https://raw.githubusercontent.com/shenghua520/work-discipline/main/skills/work-discipline"
@@ -117,6 +121,7 @@ Chinese and English versions, rule by rule.
 
 ## Repository layout
 
+<!-- SLOT:repo-tree -->
 <!-- BEGIN GENERATED:repo-tree -->
 ```text
 .
@@ -200,6 +205,7 @@ These are states of a particular machine / repository, **not rules**, so they st
 
 ## Changelog
 
+- **v11 landing ownership + trigger-responsibility split**: (1) clear-and-rebuild now uses a hand-written `<!-- SLOT:key -->` anchor in the README as the sole authority for placement, never trusting where an orphan marker landed — fixes v10's bug of moving the block into the wrong (empty) section; orphan markers elsewhere still snap back to the SLOT, and a missing SLOT is refused rather than guessed. Rebuilt content is filled back byte-for-byte from the generator output (`want`) instead of re-adding SLOT indentation — fixes a self-test finding where the whole-block case rebuilt with doubled indentation and `--check` failed permanently. (2) The public `description` drops "any task kickoff" in favor of explicit triggers + a negative boundary (casual chat / single-question Q&A / pure lookups don't trigger); "call before every task" moves to the host's resident-instruction responsibility — no forced load at every kickoff for every client, with no way to opt out. CI's negative job gains a missing-SLOT self-heal failure assertion.
 - **v10 repair with delete semantics**: fixed v9's self-heal false green — when only half a marker remained (orphan BEGIN/END), the old logic appended a fresh block, left the wreckage in place, and `--check` then blessed the bad state by recomputing the manifest. Now: (1) every key requires BEGIN count == END count == 1, orphans/duplicates are DIFFs; (2) repair is clear-then-rebuild-in-place — all markers and all content copies for that key are deleted first, never appended to EOF (landing moved from 9789 chars away back inside the install section); (3) a post-generation idempotence assertion (rendered content occurs exactly once); (4) per-file "rebuilt" reporting instead of an always-empty `[]`; (5) VERSION is cross-checked against the first changelog entry's vN (v10 ↔ 10.0.0), so the constant is no longer validated only by itself. CI's negative job gained four half-marker self-heal cases plus an in-place landing assertion.
 - **v9 generation closed loop**: fixed three v8 residuals — (1) `generate` used to print "backfilled 4 blocks" when one was missing (only 3 existed) and still reported PASS, a false green on the write path; it now auto-inserts missing blocks by marker, reports the insertion, and re-checks all blocks afterwards, failing if any remain missing. (2) `manifest.version` is now a single source — the `VERSION` constant in `build_dist.py` — and `--check` compares its value (previously only presence was checked, so tampering to 9.9.9 still passed). (3) install tree and repo tree now list all 8 refs instead of a language-specific 4 (a tree describes a directory, not a language view) — v7 fixed this, v8's generator regressed it to half. CI's negative job gained version-tamper and generate-self-heal assertions.
 - **v8 docs SSOT generation**: the distribution file list (10 rule files) is now one constant (`RULE_FILES`) in `build_dist.py`; the README install tree, bash / PS download loops, and repo structure tree are all generated from it and wrapped in `<!-- BEGIN/END GENERATED:x -->` markers. `--check` verifies generated blocks byte-for-byte — coverage moves from "guess which facts to check" to "every generated block", closing all three v7 blind spots (manifest line, script line, second tree). CI's `verify-negative-docs` now corrupts each of the four blocks in both CN and EN and asserts each is caught. Token counts in `docs/clients.md` are labeled as estimates.
